@@ -1,42 +1,44 @@
 # Arquitectura del Sistema
 
 ```mermaid
-graph TD
-    %% Definición de estilos
-    classDef client fill:#e1e1e1,stroke:#333,stroke-width:2px;
-    classDef gateway fill:#fff9c4,stroke:#333,stroke-width:2px;
-    classDef domain fill:#bbdefb,stroke:#333,stroke-width:2px;
-    classDef shared fill:#ffccbc,stroke:#333,stroke-width:2px;
-    classDef db fill:#f5f5f5,stroke:#333,stroke-width:2px;
-    classDef ext fill:#424242,stroke:#fff,stroke-width:2px,color:white;
-
-    %% Nodos Principales
-    Client([Cliente / Frontend]) ::: client
+graph TD  
+    classDef client fill:#e1e1e1,stroke:#333,stroke-width:2px,color:#000;
+    classDef gateway fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000;
+    classDef domain fill:#bbdefb,stroke:#333,stroke-width:2px,color:#000;
+    classDef shared fill:#ffccbc,stroke:#333,stroke-width:2px,color:#000;
+    classDef db fill:#f5f5f5,stroke:#333,stroke-width:2px,color:#000;
     
-    subgraph "Infraestructura Backend (Sendos)"
-        Gateway[API Gateway] ::: gateway
+    %% Este (ext) era oscuro, lo cambié a gris claro (#bdbdbd) para que se lea el negro
+    classDef ext fill:#bdbdbd,stroke:#333,stroke-width:2px,color:#000;
+
+    %% --- NODOS Y ESTRUCTURA ---
+    Client([Cliente / Frontend])
+    
+    subgraph SendosBackend ["Infraestructura Backend (Sendos)"]
+        Gateway[API Gateway]
         
         %% MÓDULO PRINCIPAL
-        subgraph "Modulo 1: Evaluaciones y Career"
-            Controller[Controllers / API Router] ::: domain
-            Service[Services Layer] ::: domain
-            Model[Models / Repositories] ::: domain
-            BgTask[Background Worker] ::: domain
+        subgraph ModuloCore ["Modulo 1: Evaluaciones y Career"]
+            Controller[Controllers / API Router]
+            Service[Services Layer]
+            Model[Models / Repositories]
+            BgTask[Background Worker]
         end
 
         %% MÓDULO COMPARTIDO
-        subgraph "Modulo Transversal (Shared)"
-            NotifyService[Notification Service] ::: shared
+        subgraph ModuloShared ["Modulo Transversal (Shared)"]
+            NotifyService[Notification Service]
         end
     end
 
-    DB[(Base de Datos PostgreSQL)] ::: db
+    DB[(Base de Datos PostgreSQL)]
     
-    subgraph "Sistemas Externos"
-        BlackBoxAI[Sistema IA Sendos] ::: ext
-        Provider[Proveedor Email/Push] ::: ext
+    subgraph External ["Sistemas Externos"]
+        BlackBoxAI[Sistema IA Sendos]
+        Provider[Proveedor Email/Push]
     end
 
+    %% --- RELACIONES ---
     %% Flujos Síncronos
     Client --> Gateway
     Gateway --> Controller
@@ -52,4 +54,12 @@ graph TD
     %% Flujo de Notificación
     BgTask -- "3. Solicitar Notificación" --> NotifyService
     NotifyService -- "4. Enviar" --> Provider
+
+    %% --- ASIGNACIÓN DE ESTILOS ---
+    class Client client;
+    class Gateway gateway;
+    class Controller,Service,Model,BgTask domain;
+    class NotifyService shared;
+    class DB db;
+    class BlackBoxAI,Provider ext;
 ```
