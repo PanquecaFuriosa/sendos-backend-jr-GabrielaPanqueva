@@ -1,3 +1,6 @@
+# Arquitectura del Sistema
+
+```mermaid
 graph TD
     %% Definición de estilos
     classDef client fill:#e1e1e1,stroke:#333,stroke-width:2px;
@@ -49,3 +52,4 @@ graph TD
     %% Flujo de Notificación
     BgTask -- "3. Solicitar Notificación" --> NotifyService
     NotifyService -- "4. Enviar" --> Provider
+```
