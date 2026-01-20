@@ -7,8 +7,6 @@ graph TD
     classDef domain fill:#bbdefb,stroke:#333,stroke-width:2px,color:#000;
     classDef shared fill:#ffccbc,stroke:#333,stroke-width:2px,color:#000;
     classDef db fill:#f5f5f5,stroke:#333,stroke-width:2px,color:#000;
-    
-    %% Este (ext) era oscuro, lo cambié a gris claro (#bdbdbd) para que se lea el negro
     classDef ext fill:#bdbdbd,stroke:#333,stroke-width:2px,color:#000;
 
     %% --- NODOS Y ESTRUCTURA ---
@@ -18,7 +16,7 @@ graph TD
         Gateway[API Gateway]
         
         %% MÓDULO PRINCIPAL
-        subgraph ModuloCore ["Modulo 1: Evaluaciones y Career"]
+        subgraph ModuloCore ["Modulo 1:<br/>Evaluaciones y Career"]
             Controller[Controllers / API Router]
             Service[Services Layer]
             Model[Models / Repositories]
