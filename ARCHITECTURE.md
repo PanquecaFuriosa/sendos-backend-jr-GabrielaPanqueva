@@ -16,11 +16,11 @@ graph TD
         Gateway[API Gateway]
         
         %% MÓDULO PRINCIPAL
-        subgraph ModuloCore ["Modulo 1:<br/>Evaluaciones y Career"]
-            Controller[Controllers / API Router]
-            Service[Services Layer]
-            Model[Models / Repositories]
-            BgTask[Background Worker]
+       subgraph ModuloCore ["Módulo Evaluaciones 360°"]
+            Controller[Controllers - Validación HTTP y Rutas]
+            Service[Services - Lógica de Negocio Pura]
+            Model[Models - Persistencia y Datos]
+            BgTask[Background Worker - Procesamiento Asíncrono]
         end
 
         %% MÓDULO COMPARTIDO
