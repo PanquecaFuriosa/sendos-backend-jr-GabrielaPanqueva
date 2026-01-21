@@ -556,6 +556,7 @@ erDiagram
         uuid evaluation_id FK "[WEAK] Dep: Evaluation"
         uuid competency_id FK
         int score
+        timestamp created_at
     }
 
     %% --- BLOQUE 3: INTELIGENCIA ARTIFICIAL ---
@@ -564,6 +565,7 @@ erDiagram
         uuid user_id FK
         uuid cycle_id FK
         jsonb ai_profile
+        timestamp created_at
     }
 
     %% --- BLOQUE 4: PLANES DE CARRERA (CADENA DÉBIL) ---
@@ -572,6 +574,7 @@ erDiagram
         uuid user_id FK "[WEAK] Dep: User"
         string title
         float match_score
+        timestamp created_at
     }
 
     CAREER_PATH_STEPS {
@@ -711,3 +714,146 @@ sequenceDiagram
     API-->>User: 200 OK (JSON Detallado con pasos y cursos)
 ```
 
+## 1.5 Especificaciones para Agentes de Código
+A continuación se presentan las instrucciones técnicas precisas diseñadas para ser ingresadas en asistentes de codificación (Cursor/Copilot), asegurando la generación de código robusto y alineado con la arquitectura. Además de las instrucciones, se le suministró al agente, el contexto de su rol y de lo que debe hacer para que éste fuese capaz de "meterse" en dicho rol y "entender" un poco más lo que se requiere.
+
+### a) Modelo de datos SQLAlchemy para la tabla de Skills Assessment
+Eres el Ingeniero de Software Senior de Sendos, una plataforma de gestión de recursos humanos, eres experto en bases de datos PostgreSQL y SQLAlchemy. Tu trabajo es generar el código para la entidad SkillsAssessment siguiendo la especificaciones estrictas que se enlistan a continuación:
+
+1. Configuración Base:
+   - Usa la sintaxis moderna de SQLAlchemy 2.0 (Mapped, mapped_column).
+   - El modelo debe heredar de Base.
+   - Nombre de tabla: skills_assessments.
+
+2. Campos Requeridos:
+   - id: UUID, Primary Key, valor por defecto uuid4.
+   - user_id: UUID, ForeignKey a users.id, no nulo, indexado.
+   - cycle_id: UUID, ForeignKey a evaluation_cycles.id, no nulo.
+   - ai_profile: JSONB, no nulo. Aquí se guardará el análisis cualitativo (fortalezas/debilidades).
+   - created_at: DateTime (UTC), por defecto func.now().
+
+3. Relaciones:
+   - user: Relación M:1 con la tabla User (back_populates="assessments").
+   - cycle: Relación M:1 con la tabla EvaluationCycle.
+
+4. Restricciones (Constraints):
+   - Crea un UniqueConstraint compuesto para (user_id, cycle_id). Un usuario solo debe tener un perfil de IA por ciclo.
+
+5. Extras:
+   - Incluye un método __repr__ útil para debugging que muestre el ID y el user_id.
+   - Asegúrate de importar los tipos necesarios de sqlalchemy y sqlalchemy.dialects.postgresql.
+
+### b) Endpoint POST para crear una evaluación
+Eres el Ingeniero de Software Senior de Sendos, una plataforma de gestión de recursos humanos, eres experto en FastAPI y arquitectura asíncrona. Tu tarea es generar el código para el endpoint de creación de evaluaciones, asegurando que la experiencia de usuario sea rápida aunque el procesamiento posterior sea lento. Sigue estas especificaciones:
+
+1. Firma del Endpoint:
+   - Archivo: app/api/routers/evaluations.py.
+   - Decorador: @router.post("/", status_code=201).
+   - Respuesta: Debe devolver el objeto creado usando el esquema EvaluationResponse.
+
+2. Validación de Datos (Pydantic):
+   - Entrada: Esquema EvaluationCreate.
+   - Regla Crítica: Valida que el campo score (dentro de los detalles) sea un entero estrictamente entre 1 y 10.
+   - Si la validación falla, el framework debe levantar HTTPException(422) automáticamente.
+3. Lógica de Persistencia (Base de Datos):
+   - Usa AsyncSession inyectada vía Depends.
+   - Paso 1: Verifica si el cycle_id existe. Si no, lanza HTTPException(404).
+   - Paso 2: Intenta insertar la evaluación. Envuelve esto en un bloque try/except.
+   - Manejo de Error Específico: Si SQLAlchemy lanza un IntegrityError, significa que se violó el constraint de unicidad (ya existe una evaluación para este par en este ciclo). En este caso, lanza HTTPException(409, detail="Evaluation already exists").
+
+4. Desacoplamiento (Background Tasks):
+   - Inyecta BackgroundTasks en la función del controlador.
+   - Lógica: Una vez confirmado el commit en la BD, llama a la función de servicio service.trigger_ai_pipeline(user_id).
+   - Instrucción de Claridad: Esta llamada debe pasarse obligatoriamente a background_tasks.add_task(...). Bajo ninguna circunstancia debes usar await en esta línea, ya que bloquearía la respuesta HTTP al cliente.
+
+5. Documentación OpenAPI (Swagger):
+   - Agrega un summary="Submit a new 360 evaluation".
+   - En el parámetro responses del decorador, documenta explícitamente:
+     * 404: "Cycle or User not found".
+     * 409: "Evaluation duplicate constraint violation".
+
+### c) Servicio de integración con el AI Career Path Generator
+
+Eres el Ingeniero de Backend Senior de Sendos, una plataforma de gestión de recursos humanos. Eres especialista en integración de sistemas. Tu tarea es implementar `AICareerService` en `app/services/ai_service.py`. Debes crear un **Mock Robusto** que simule el comportamiento real del motor de una IA que genera rutas de crecimiento profesional como empleado.
+
+1. Definición Asíncrona:
+   - Clase: `AICareerService`.
+   - Método: `async def generate_career_path(self, user_profile: Dict) -> Dict`.
+
+2. Simulación de Latencia (Realismo):
+   - La IA es un proceso pesado. Usa `await asyncio.sleep(random.uniform(2.0, 5.0))` para simular el tiempo de inferencia.
+
+4. Resiliencia (Retry Logic):
+   - Implementa resiliencia usando `tenacity`.
+   - Configuración: Máximo 3 intentos con **Backoff Exponencial** (multiplier=1, min=2, max=10).
+   - Simulación de Fallos: Haz que el 10% de las peticiones fallen aleatoriamente (`ConnectionError`) para validar que el mecanismo de reintento funciona.
+
+4. Contrato de Datos (Output):
+   - Estructura Requerida del Mock:
+```json
+{
+  "career_path_id": "uuid",
+  "user_id": "uuid",
+  "generated_paths": [
+    {
+      "path_id": "uuid",
+      "path_name": "Ruta de Liderazgo Regional",
+      "recommended": true,
+      "total_duration_months": 24,
+      "feasibility_score": 0.85,
+      "steps": [
+        {
+          "step_number": 1,
+          "target_role": "Gerente de Sucursal Senior",
+          "duration_months": 12,
+          "required_competencies": [
+            {
+              "name": "Pensamiento Estratégico",
+              "current_level": 5,
+              "required_level": 7,
+              "development_actions": [
+                "Curso: Estrategia de Negocios Avanzada",
+                "Proyecto: Plan estratégico para sucursal",
+                "Mentoría con Gerente Regional"
+              ]
+            }
+          ]
+        },
+        {
+          "step_number": 2,
+          "target_role": "Gerente Regional",
+          "duration_months": 12,
+          "required_competencies": [
+            {
+              "name": "Gestión de P&L",
+              "current_level": 4,
+              "required_level": 8,
+              "development_actions": [
+                "Certificación: Finanzas para Managers",
+                "Shadowing: Director Financiero",
+                "Proyecto: Análisis de rentabilidad regional"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path_id": "uuid",
+      "path_name": "Ruta de Especialización en Operaciones",
+      "recommended": false,
+      "total_duration_months": 18,
+      "feasibility_score": 0.72,
+      "steps": [...]
+    }
+  ],
+  "timestamp": "2025-01-15T10:35:00Z"
+}
+
+```
+
+5. Manejo de Timeouts:
+   - Si el proceso total excede los **10 segundos**, lanza `AITimeoutError`.
+
+7. Observabilidad:
+   - Usa `logging` para registrar: Inicio del proceso (INFO), Intentos fallidos (WARNING) y Éxito final con el ID del usuario (INFO).
