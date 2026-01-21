@@ -519,7 +519,7 @@ Response 401:
 }
 ```
 
-## Diseño de Modelo de Datos
+## 1.3 Diseño de Modelo de Datos
 ```mermaid
 erDiagram
     %% --- BLOQUE 1: ACTORES Y TIEMPO ---
@@ -632,3 +632,82 @@ Regla: Un ciclo no puede terminar antes de empezar.
 Sea C el conjunto de Ciclos de Evaluación.
 
 ∀ c ∈ C : c.start_date < c.end_date
+
+## 1.4 Flujo de Procesamiento Completo
+### 1.4.1 Flujo 1: Procesamiento de Evaluación 360°
+1. Un usuario completa todas sus evaluaciones 360° (self, peers, manager, direct reports)
+2. El sistema detecta que el ciclo está completo
+3. Se dispara el procesamiento automático con IA
+4. Se genera el Skills Assessment
+5. Se genera el Career Path
+6. Se notifica al usuario
+
+Este flujo describe el proceso "Core" del sistema. Dado que los servicios de IA pueden tardar entre 5 y 30 segundos en responder, este proceso se maneja de forma asíncrona utilizando BackgroundTasks de FastAPI para no bloquear al cliente
+
+#### Diagrama de secuencia
+```mermaid
+sequenceDiagram
+    participant User as Cliente (Frontend)
+    participant API as Backend FastAPI
+    participant DB as Base de Datos
+    participant Worker as Tarea en 2do Plano
+    participant AISkills as Servicio IA Habilidades
+    participant AICareer as Servicio IA Carrera
+
+    User->>API: POST /evaluations (Envía evaluación)
+    API->>DB: Guardar Evaluación
+    API->>DB: ¿Ciclo Completado? (Auto + Jefe + Pares)
+    
+    alt Ciclo Incompleto
+        API-->>User: 201 Created (Estado: Pendiente)
+    else Ciclo Completo
+        API->>Worker: Encolar "Procesar Análisis IA"
+        API-->>User: 201 Created (Estado: Procesando)
+        
+        Note over Worker: Inicia Proceso Asíncrono
+        
+        %% Paso 1: Evaluación de Habilidades
+        Worker->>DB: Obtener todas las evaluaciones del ciclo
+        Worker->>AISkills: POST /assess_skills (Datos Crudos)
+        AISkills-->>Worker: JSON Perfil de Habilidades
+        Worker->>DB: Insertar en tabla skills_assessments
+        
+        %% Paso 2: Generación de Senderos (Depende del anterior)
+        Worker->>DB: Obtener Perfil Usuario + ID Assessment
+        Worker->>AICareer: POST /generate_paths
+        AICareer-->>Worker: JSON Senderos de Carrera
+        Worker->>DB: Insertar en tablas career_paths y steps
+        
+        %% Paso 3: Finalización
+        Worker->>DB: Actualizar Estado Ciclo = COMPLETADO
+        Worker->>User: (Simulado) Enviar Notificación "Resultados Listos"
+    end
+```
+
+El flujo comienza automáticamente en cuanto el sistema valida que se han completado todas las evaluaciones requeridas del empleado, incluyendo la autoevaluación, la del jefe y la de los pares. Para optimizar la experiencia de usuario, se diseñó este proceso de manera asíncrona utilizando BackgroundTasks de FastAPI; lo cual permite devolver una respuesta exitosa de inmediato mientras la lógica pesada se ejecuta en segundo plano.
+
+Luego, el sistema toma las calificaciones numéricas "crudas" y las procesa a través de dos capas de inteligencia artificial: la primera transforma esos datos en un perfil cualitativo de fortalezas y debilidades en formato JSONB, y la segunda utiliza ese perfil junto con la jerarquía organizacional para proponer planes de carrera.
+
+### 1.4.2 Flujo 2: Consulta de Senderos de Carrera
+1. Un usuario consulta sus senderos disponibles
+2. El sistema retorna los senderos con su estado actual
+3. El usuario puede ver detalles de un sendero específico
+```mermaid
+sequenceDiagram
+    participant User as Cliente (Usuario)
+    participant API as Backend FastAPI
+    participant DB as Base de Datos
+
+    %% Consulta de Lista (Resumen)
+    User->>API: GET /career-paths/{user_id}
+    API->>DB: SELECT * FROM career_paths WHERE user_id = ...
+    DB-->>API: Retorna Lista [Sendero A, Sendero B]
+    API-->>User: 200 OK (JSON Resumen: Título y Score)
+
+    %% Consulta de Detalle (Carga Diferida)
+    User->>API: GET /career-paths/{path_id}/steps
+    API->>DB: JOIN career_paths + steps + actions
+    DB-->>API: Retorna Jerarquía Completa
+    API-->>User: 200 OK (JSON Detallado con pasos y cursos)
+```
+
