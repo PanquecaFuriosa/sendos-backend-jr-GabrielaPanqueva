@@ -512,3 +512,123 @@ Response 200:
   }
 ]
 ```
+Response 401: 
+```json
+{
+   "detail": "Authentication credentials not provided or invalid."
+}
+```
+
+## Diseño de Modelo de Datos
+```mermaid
+erDiagram
+    %% --- BLOQUE 1: ACTORES Y TIEMPO ---
+    USERS {
+        uuid id PK
+        string email
+        string full_name
+    }
+
+    EVALUATION_CYCLES {
+        uuid id PK
+        string name
+        timestamp start_date
+        string status
+    }
+
+    COMPETENCIES {
+        uuid id PK
+        string name
+        string description
+    }
+
+    %% --- BLOQUE 2: PROCESOS (EVALUACIONES) ---
+    EVALUATIONS {
+        uuid id PK
+        uuid evaluator_id FK
+        uuid evaluatee_id FK
+        uuid cycle_id FK
+        string status
+    }
+
+    EVALUATION_DETAILS {
+        uuid id PK
+        uuid evaluation_id FK "[WEAK] Dep: Evaluation"
+        uuid competency_id FK
+        int score
+    }
+
+    %% --- BLOQUE 3: INTELIGENCIA ARTIFICIAL ---
+    SKILLS_ASSESSMENTS {
+        uuid id PK
+        uuid user_id FK
+        uuid cycle_id FK
+        jsonb ai_profile
+    }
+
+    %% --- BLOQUE 4: PLANES DE CARRERA (CADENA DÉBIL) ---
+    CAREER_PATHS {
+        uuid id PK
+        uuid user_id FK "[WEAK] Dep: User"
+        string title
+        float match_score
+    }
+
+    CAREER_PATH_STEPS {
+        uuid id PK
+        uuid career_path_id FK "[WEAK] Dep: Path"
+        int step_order
+        string title
+    }
+
+    DEVELOPMENT_ACTIONS {
+        uuid id PK
+        uuid step_id FK "[WEAK] Dep: Step"
+        string type
+        string description
+    }
+
+    %% --- RELACIONES (Ordenadas para evitar cruces) ---
+
+    %% Usuarios y Ciclos
+    USERS ||--o{ EVALUATIONS : "recibe/realiza"
+    EVALUATION_CYCLES ||--o{ EVALUATIONS : "agrupa"
+    
+    %% Detalles de Evaluación
+    EVALUATIONS ||--|{ EVALUATION_DETAILS : "tiene detalles"
+    COMPETENCIES ||--o{ EVALUATION_DETAILS : "se mide en"
+
+    %% IA
+    USERS ||--o{ SKILLS_ASSESSMENTS : "tiene perfil IA"
+    EVALUATION_CYCLES ||--o{ SKILLS_ASSESSMENTS : "contexto"
+
+    %% Senderos (Cascada hacia abajo)
+    USERS ||--o{ CAREER_PATHS : "proyecta"
+    CAREER_PATHS ||--|{ CAREER_PATH_STEPS : "pasos"
+    CAREER_PATH_STEPS ||--o{ DEVELOPMENT_ACTIONS : "acciones"
+```
+
+### Constraints y validaciones
+#### 1.3.1 Unicidad de Evaluaciones
+Regla: No pueden existir dos evaluaciones distintas para el mismo par (Evaluador, Evaluado) dentro del mismo Ciclo.
+Sea E el conjunto de todas las Evaluaciones.
+Sea e.evaluator, e.evaluatee, e.cycle los atributos de una evaluación e.
+
+∀ e1, e2 ∈ E :
+    (e1.evaluator = e2.evaluator ∧
+     e1.evaluatee = e2.evaluatee ∧
+     e1.cycle = e2.cycle)
+    ⟹ e1 = e2
+
+#### 1.3.2 Validez de Puntajes
+Regla: Todo puntaje asignado en un detalle de evaluación debe estar dentro del rango [1, 10].
+Sea D el conjunto de todos los Detalles de Evaluación (EvaluationDetails).
+Sea d.score el puntaje asignado.
+
+∀ d ∈ D : (d.score ≥ 1 ∧ d.score ≤ 10)
+
+#### 1.3.2 Coherencia Temporal de Ciclos
+Regla: Un ciclo no puede terminar antes de empezar.
+Sea C el conjunto de Ciclos de Evaluación.
+
+∀ c ∈ C : c.start_date < c.end_date
