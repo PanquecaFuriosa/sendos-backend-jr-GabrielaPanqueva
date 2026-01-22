@@ -523,19 +523,29 @@ erDiagram
         uuid id PK
         string email
         string full_name
+        string current_position
+        string department
+        string years_experience
+        timestamp created_at
+        timestamp updated_at
     }
 
     EVALUATION_CYCLES {
         uuid id PK
         string name
         timestamp start_date
+        timestamp end_date
         string status
+        timestamp created_at
+        timestamp updated_at
     }
 
     COMPETENCIES {
         uuid id PK
-        string name UNIQUE
+        string name
         string description
+        timestamp created_at
+        timestamp updated_at
     }
 
     %% --- BLOQUE 2: PROCESOS (EVALUACIONES) ---
@@ -544,14 +554,19 @@ erDiagram
         uuid evaluator_id FK
         uuid employee_id FK
         uuid cycle_id FK
+        string evaluator_relationship
+        text general_feedback
         string status
+        timestamp created_at
+        timestamp updated_at
     }
 
     EVALUATION_DETAILS {
         uuid id PK
-        uuid evaluation_id FK "[WEAK] Dep: Evaluation"
+        uuid evaluation_id FK
         uuid competency_id FK
         int score
+        text comments
         timestamp created_at
     }
 
@@ -572,7 +587,7 @@ erDiagram
     %% --- BLOQUE 4: PLANES DE CARRERA (CADENA DÉBIL) ---
     CAREER_PATHS {
         uuid id PK
-        uuid user_id FK "[WEAK] Dep: User"
+        uuid user_id FK
         string path_name
         boolean recommended
         float total_duration_months
@@ -587,7 +602,7 @@ erDiagram
 
     CAREER_PATH_STEPS {
         uuid id PK
-        uuid career_path_id FK "[WEAK] Dep: Path"
+        uuid career_path_id FK
         int step_order
         string title
         string target_role
@@ -599,9 +614,9 @@ erDiagram
 
     DEVELOPMENT_ACTIONS {
         uuid id PK
-        uuid step_id FK "[WEAK] Dep: Step"
+        uuid step_id FK
         string type
-        string description
+        text description
         timestamp created_at
     }
 
@@ -626,29 +641,46 @@ erDiagram
 ```
 
 ### Constraints y validaciones
-#### 1.3.1 Unicidad de Evaluaciones
-Regla: No pueden existir dos evaluaciones distintas para el mismo par (Evaluador, Evaluado) dentro del mismo Ciclo.
+
+#### 1.3.1 Unicidad de Competencias
+Regla: No pueden existir dos competencias con el mismo nombre.
+Sea C el conjunto de todas las Competencias.
+
+∀ c1, c2 ∈ C : c1.name = c2.name ⟹ c1 = c2
+
+
+#### 1.3.2 Unicidad de Evaluaciones
+Regla: No pueden existir dos evaluaciones distintas para el mismo par (Evaluador, Empleado) dentro del mismo Ciclo.
 Sea E el conjunto de todas las Evaluaciones.
-Sea e.evaluator, e.evaluatee, e.cycle los atributos de una evaluación e.
+Sea e.evaluator, e.employee, e.cycle los atributos de una evaluación e.
 
 ∀ e1, e2 ∈ E :
     (e1.evaluator = e2.evaluator ∧
-     e1.evaluatee = e2.evaluatee ∧
+     e1.employee = e2.employee ∧
      e1.cycle = e2.cycle)
-    ⟹ e1 = e2
+    ⟹ e1 = e2`
 
-#### 1.3.2 Validez de Puntajes
+#### 1.3.3 Unicidad de Assessments
+Regla: Un usuario solo puede tener un assessment por ciclo de evaluación.
+Sea A el conjunto de todos los Skills Assessments.
+
+∀ a1, a2 ∈ A :
+    (a1.user_id = a2.user_id ∧
+     a1.cycle_id = a2.cycle_id)
+    ⟹ a1 = a2
+
+#### 1.3.4 Validez de Puntajes
 Regla: Todo puntaje asignado en un detalle de evaluación debe estar dentro del rango [1, 10].
 Sea D el conjunto de todos los Detalles de Evaluación (EvaluationDetails).
 Sea d.score el puntaje asignado.
 
 ∀ d ∈ D : (d.score ≥ 1 ∧ d.score ≤ 10)
 
-#### 1.3.2 Coherencia Temporal de Ciclos
+#### 1.3.5 Coherencia Temporal de Ciclos
 Regla: Un ciclo no puede terminar antes de empezar.
 Sea C el conjunto de Ciclos de Evaluación.
 
-∀ c ∈ C : c.start_date < c.end_date
+∀ c ∈ C : c.end_date IS NULL OR c.start_date < c.end_date
 
 ## 1.4 Flujo de Procesamiento Completo
 ### 1.4.1 Flujo 1: Procesamiento de Evaluación 360°
