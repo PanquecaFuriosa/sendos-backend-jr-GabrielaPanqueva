@@ -1,6 +1,9 @@
 """
-Script para inicializar la base de datos con datos de ejemplo.
-Incluye: Users, EvaluationCycles, Competencies, Evaluations con detalles.
+Script to initialize the database with sample data.
+Includes: Users, EvaluationCycles, Competencies, Evaluations with details.
+
+Note: Database tables are created via Alembic migrations.
+Run 'alembic upgrade head' before executing this script.
 """
 from app.database import SessionLocal
 from app.models.user import User
@@ -13,11 +16,11 @@ import uuid
 
 
 def init_db():
-    """Inicializa la base de datos con datos de ejemplo completos."""
+    """Initialize the database with complete sample data."""
     db = SessionLocal()
     
     try:
-        # Verificar si ya existen datos
+        # Check if data already exists
         existing_users = db.query(User).count()
         if existing_users > 0:
             print(f"La base de datos ya tiene {existing_users} usuarios. No se crearon más.")
@@ -25,7 +28,7 @@ def init_db():
         
         print("Inicializando base de datos...")
         
-        # 1. Crear usuarios de ejemplo
+        # 1. Create sample users
         users_data = [
             {
                 "email": "maria.garcia@sendos.com",
@@ -73,10 +76,9 @@ def init_db():
         db.flush()
         print(f"Usuarios creados: {len(users)}")
         
-        # 2. Crear ciclo de evaluación
+        # 2. Create evaluation cycle
         cycle = EvaluationCycle(
             name="Q1 2026",
-            description="Ciclo de evaluación del primer trimestre 2026",
             start_date=datetime(2026, 1, 1),
             end_date=datetime(2026, 3, 31),
             status=CycleStatus.ACTIVE
@@ -85,7 +87,7 @@ def init_db():
         db.flush()
         print(f"Ciclo de evaluación creado: {cycle.name}")
         
-        # 3. Crear catálogo de competencias
+        # 3. Create competencies catalog
         competencies_data = [
             {"name": "Liderazgo", "description": "Capacidad de dirigir y motivar equipos"},
             {"name": "Comunicación", "description": "Habilidad para transmitir ideas claramente"},
@@ -108,22 +110,21 @@ def init_db():
         db.flush()
         print(f"Catálogo de {len(competencies)} competencias creado")
         
-        # 4. Crear evaluaciones de ejemplo para María García
-        # Asumiendo: María (0), Carlos (1), Ana (2), Pedro (3), Laura (4)
+        # 4. Create sample evaluations for María García
+        # Assuming: María (0), Carlos (1), Ana (2), Pedro (3), Laura (4)
         
-        # Auto-evaluación de María
+        # María's self-evaluation
         eval_self = Evaluation(
             evaluator_id=users[0].id,
             evaluatee_id=users[0].id,
             cycle_id=cycle.id,
-            relationship=EvaluatorRelationship.SELF,
-            status=EvaluationStatus.COMPLETED,
-            submitted_at=datetime.utcnow()
+            evaluator_relationship=EvaluatorRelationship.SELF,
+            status=EvaluationStatus.SUBMITTED
         )
         db.add(eval_self)
         db.flush()
         
-        # Detalles de auto-evaluación (scores moderados)
+        # Self-evaluation details (moderate scores)
         self_scores = [7, 6, 8, 7, 7, 5, 6, 8, 5, 6]
         for i, comp in enumerate(competencies):
             detail = EvaluationDetail(
@@ -134,19 +135,18 @@ def init_db():
             )
             db.add(detail)
         
-        # Evaluación de Carlos (Manager) a María
+        # Carlos's (Manager) evaluation of María
         eval_manager = Evaluation(
             evaluator_id=users[1].id,
             evaluatee_id=users[0].id,
             cycle_id=cycle.id,
-            relationship=EvaluatorRelationship.MANAGER,
-            status=EvaluationStatus.COMPLETED,
-            submitted_at=datetime.utcnow()
+            evaluator_relationship=EvaluatorRelationship.MANAGER,
+            status=EvaluationStatus.SUBMITTED
         )
         db.add(eval_manager)
         db.flush()
         
-        # Detalles (manager ve más fortalezas)
+        # Manager's details (sees more strengths)
         manager_scores = [8, 8, 9, 8, 7, 6, 7, 9, 6, 8]
         for i, comp in enumerate(competencies):
             detail = EvaluationDetail(
@@ -157,19 +157,18 @@ def init_db():
             )
             db.add(detail)
         
-        # Evaluación de Ana (Peer) a María
+        # Ana's (Peer) evaluation of María
         eval_peer = Evaluation(
             evaluator_id=users[2].id,
             evaluatee_id=users[0].id,
             cycle_id=cycle.id,
-            relationship=EvaluatorRelationship.PEER,
-            status=EvaluationStatus.COMPLETED,
-            submitted_at=datetime.utcnow()
+            evaluator_relationship=EvaluatorRelationship.PEER,
+            status=EvaluationStatus.SUBMITTED
         )
         db.add(eval_peer)
         db.flush()
         
-        # Detalles de peer (scores balanceados)
+        # Peer details (balanced scores)
         peer_scores = [8, 9, 9, 7, 8, 6, 7, 8, 7, 7]
         for i, comp in enumerate(competencies):
             detail = EvaluationDetail(
@@ -186,7 +185,7 @@ def init_db():
         print("   - Evaluación de manager (MANAGER)")
         print("   - Evaluación de peer (PEER)")
         
-        # Mostrar resumen
+        # Show summary
         print("\nResumen de datos creados:")
         print(f"   Usuarios: {len(users)}")
         print(f"   Ciclos: 1 ({cycle.name})")

@@ -1,5 +1,5 @@
 """
-Servicio mock de IA para simular análisis de habilidades y generación de senderos de carrera.
+Mock AI service to simulate skills analysis and career path generation.
 """
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -10,7 +10,7 @@ app = FastAPI(title="AI Mock Service")
 
 
 class SkillsAssessmentRequest(BaseModel):
-    """Request con estructura: user_id, cycle_id, evaluations array"""
+    """Request structure: user_id, cycle_id, evaluations array"""
     user_id: str
     cycle_id: str
     evaluations: List[Dict[str, Any]]
@@ -30,8 +30,8 @@ async def root():
 @app.post("/skills-assessment")
 async def assess_skills(request: SkillsAssessmentRequest):
     """
-    Simula el análisis de habilidades usando IA.
-    Procesa evaluaciones 360° con estructura evaluator/evaluatee/relationship.
+    Simulates skills analysis using AI.
+    Processes 360° evaluations with evaluator/evaluatee/relationship structure.
     
     Request structure:
     {
@@ -50,7 +50,7 @@ async def assess_skills(request: SkillsAssessmentRequest):
     """
     evaluations = request.evaluations
     
-    # Agrupar competencias por tipo de evaluador
+    # Group competencies by evaluator type
     competency_scores = {}
     
     for evaluation in evaluations:
@@ -71,7 +71,7 @@ async def assess_skills(request: SkillsAssessmentRequest):
             
             competency_scores[name][relationship].append(score)
     
-    # Analizar competencias
+    # Analyze competencies
     strengths = []
     growth_areas = []
     hidden_talents = []
@@ -86,7 +86,7 @@ async def assess_skills(request: SkillsAssessmentRequest):
         
         avg_score = sum(all_scores) / len(all_scores)
         
-        # Detectar hidden talents: SELF bajo pero otros altos
+        # Detect hidden talents: low SELF but high others
         self_scores = scores_by_type.get("SELF", [])
         other_scores = (scores_by_type.get("MANAGER", []) + 
                        scores_by_type.get("PEER", []) + 
@@ -105,7 +105,7 @@ async def assess_skills(request: SkillsAssessmentRequest):
         elif avg_score <= 5:
             growth_areas.append(comp_name)
     
-    # Generar readiness para roles basado en fortalezas
+    # Generate role readiness based on strengths
     readiness_for_roles = [
         {
             "role_name": "Gerente Regional",
@@ -135,8 +135,8 @@ async def assess_skills(request: SkillsAssessmentRequest):
 @app.post("/career-path-generator")
 async def generate_career_path(request: CareerPathRequest):
     """
-    Simula la generación de senderos de carrera personalizados usando IA.
-    Retorna estructura compatible con CareerPath, CareerPathStep y DevelopmentAction.
+    Simulates personalized career path generation using AI.
+    Returns structure compatible with CareerPath, CareerPathStep and DevelopmentAction.
     
     Response structure:
     {
@@ -169,10 +169,10 @@ async def generate_career_path(request: CareerPathRequest):
     strengths = ai_profile.get("strengths", [])
     growth_areas = ai_profile.get("growth_areas", [])
     
-    # Generar 2-3 senderos personalizados
+    # Generate 2-3 personalized paths
     generated_paths = []
     
-    # Path 1: Ruta de Liderazgo (recomendado si tiene fortalezas)
+    # Path 1: Leadership Route (recommended if has strengths)
     path1 = {
         "path_name": "Ruta de Liderazgo Ejecutivo",
         "recommended": len(strengths) >= 3,
@@ -219,7 +219,7 @@ async def generate_career_path(request: CareerPathRequest):
     }
     generated_paths.append(path1)
     
-    # Path 2: Ruta de Especialización Técnica
+    # Path 2: Technical Specialization Route
     path2 = {
         "path_name": "Ruta de Especialización Técnica",
         "recommended": len(growth_areas) <= 2,
@@ -292,314 +292,6 @@ async def generate_career_path(request: CareerPathRequest):
     
     return {
         "generated_paths": generated_paths
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
-
-
-@app.get("/")
-async def root():
-    return {"service": "AI Mock Service", "status": "running"}
-
-
-@app.post("/skills-assessment")
-async def assess_skills(request: SkillsAssessmentRequest):
-    """
-    Simula el análisis de habilidades usando IA.
-    En producción, esto llamaría a un modelo de ML real.
-    """
-    competencies = request.evaluation_data.get("competencies", [])
-    
-    strengths = []
-    growth_areas = []
-    hidden_talents = []
-    
-    for comp in competencies:
-        name = comp.get("name", "")
-        self_score = comp.get("self_score", 0)
-        peer_scores = comp.get("peer_scores", [])
-        manager_score = comp.get("manager_score", 0)
-        
-        # Calcular promedio
-        all_scores = [self_score, manager_score] + peer_scores
-        avg_score = sum(all_scores) / len(all_scores)
-        
-        if avg_score >= 8:
-            strengths.append(name)
-        elif avg_score <= 5:
-            growth_areas.append(name)
-        else:
-            hidden_talents.append(name)
-    
-    # Generar readiness para roles
-    readiness_for_roles = [
-        {
-            "role": "Gerente Regional",
-            "readiness_percentage": random.randint(55, 75),
-            "missing_competencies": growth_areas[:2] if growth_areas else ["Liderazgo Estratégico"]
-        },
-        {
-            "role": "Director de Operaciones",
-            "readiness_percentage": random.randint(40, 60),
-            "missing_competencies": growth_areas if growth_areas else ["Visión Estratégica", "Gestión Financiera"]
-        },
-        {
-            "role": "Coordinador de Equipo",
-            "readiness_percentage": random.randint(75, 90),
-            "missing_competencies": []
-        }
-    ]
-    
-    return {
-        "skills_profile": {
-            "strengths": strengths,
-            "growth_areas": growth_areas,
-            "hidden_talents": hidden_talents
-        },
-        "readiness_for_roles": readiness_for_roles
-    }
-
-
-@app.post("/career-path-generator")
-async def generate_career_path(request: CareerPathRequest):
-    """
-    Simula la generación de senderos de carrera personalizados usando IA.
-    En producción, esto usaría modelos de ML para predecir rutas óptimas.
-    """
-    user_profile = request.user_profile
-    skills_profile = request.skills_profile
-    readiness = request.readiness
-    
-    current_position = user_profile.get("current_position", "Analista")
-    
-    # Generar senderos recomendados
-    recommended_paths = [
-        {
-            "target_role": "Gerente Regional",
-            "timeline_months": 12,
-            "milestones": [
-                {
-                    "description": "Completar certificación en Liderazgo Estratégico",
-                    "target_month": 3,
-                    "success_criteria": [
-                        "Obtener certificación reconocida",
-                        "Aplicar conceptos en proyecto real",
-                        "Recibir feedback positivo de superiores"
-                    ]
-                },
-                {
-                    "description": "Liderar proyecto cross-funcional importante",
-                    "target_month": 6,
-                    "success_criteria": [
-                        "Entregar proyecto a tiempo y dentro de presupuesto",
-                        "Gestionar equipo de al menos 5 personas",
-                        "Demostrar habilidades de stakeholder management"
-                    ]
-                },
-                {
-                    "description": "Programa de mentoría con Gerente Regional",
-                    "target_month": 9,
-                    "success_criteria": [
-                        "Completar 10 sesiones de mentoría",
-                        "Implementar al menos 3 mejoras sugeridas",
-                        "Recibir endorsement del mentor"
-                    ]
-                },
-                {
-                    "description": "Presentar propuesta estratégica a dirección",
-                    "target_month": 12,
-                    "success_criteria": [
-                        "Desarrollar business case completo",
-                        "Presentar a comité ejecutivo",
-                        "Obtener aprobación para implementación"
-                    ]
-                }
-            ],
-            "development_actions": [
-                {
-                    "action_type": "training",
-                    "description": "Curso de Liderazgo Estratégico Avanzado",
-                    "priority": "high"
-                },
-                {
-                    "action_type": "project",
-                    "description": "Liderar iniciativa de transformación digital",
-                    "priority": "high"
-                },
-                {
-                    "action_type": "mentoring",
-                    "description": "Mentoría 1:1 con ejecutivo senior",
-                    "priority": "medium"
-                },
-                {
-                    "action_type": "networking",
-                    "description": "Participar en conferencias de liderazgo",
-                    "priority": "medium"
-                }
-            ],
-            "success_probability": 0.75
-        },
-        {
-            "target_role": "Especialista Senior",
-            "timeline_months": 6,
-            "milestones": [
-                {
-                    "description": "Certificación técnica avanzada",
-                    "target_month": 2,
-                    "success_criteria": [
-                        "Obtener certificación profesional",
-                        "Alcanzar score superior al 90%"
-                    ]
-                },
-                {
-                    "description": "Publicar artículo técnico o case study",
-                    "target_month": 4,
-                    "success_criteria": [
-                        "Publicar en blog corporativo o medio externo",
-                        "Recibir al menos 500 visualizaciones"
-                    ]
-                },
-                {
-                    "description": "Convertirse en referente interno",
-                    "target_month": 6,
-                    "success_criteria": [
-                        "Ser consultado por al menos 3 equipos",
-                        "Dar al menos 2 charlas internas"
-                    ]
-                }
-            ],
-            "development_actions": [
-                {
-                    "action_type": "training",
-                    "description": "Especialización técnica avanzada",
-                    "priority": "high"
-                },
-                {
-                    "action_type": "project",
-                    "description": "Proyecto de innovación o mejora",
-                    "priority": "high"
-                },
-                {
-                    "action_type": "knowledge_sharing",
-                    "description": "Programa de capacitación interna",
-                    "priority": "medium"
-                }
-            ],
-            "success_probability": 0.85
-        }
-    ]
-    
-    # Plan de desarrollo de habilidades
-    skill_development_plan = [
-        {
-            "skill": "Pensamiento Estratégico",
-            "current_level": "Básico",
-            "target_level": "Avanzado",
-            "recommended_actions": [
-                "Tomar curso de estrategia empresarial",
-                "Participar en sesiones de planificación estratégica",
-                "Leer casos de estudio de Harvard Business Review",
-                "Practicar análisis FODA y matrices estratégicas"
-            ],
-            "estimated_time_months": 6
-        },
-        {
-            "skill": "Gestión de Equipos",
-            "current_level": "Intermedio",
-            "target_level": "Avanzado",
-            "recommended_actions": [
-                "Taller de gestión de equipos de alto rendimiento",
-                "Coaching individual con experto en RRHH",
-                "Liderar equipo en proyecto estratégico",
-                "Implementar framework de OKRs con el equipo"
-            ],
-            "estimated_time_months": 4
-        },
-        {
-            "skill": "Comunicación Ejecutiva",
-            "current_level": "Básico",
-            "target_level": "Intermedio",
-            "recommended_actions": [
-                "Curso de presentaciones ejecutivas",
-                "Práctica con feedback de mentores",
-                "Presentar en reuniones de liderazgo",
-                "Toastmasters o club de oratoria"
-            ],
-            "estimated_time_months": 3
-        },
-        {
-            "skill": "Toma de Decisiones Basada en Datos",
-            "current_level": "Intermedio",
-            "target_level": "Avanzado",
-            "recommended_actions": [
-                "Curso de análisis de datos para negocios",
-                "Usar herramientas de BI en proyectos reales",
-                "Desarrollar dashboards de KPIs",
-                "Participar en proyectos de data analytics"
-            ],
-            "estimated_time_months": 5
-        }
-    ]
-    
-    # Recursos de aprendizaje
-    learning_resources = [
-        {
-            "type": "course",
-            "title": "Liderazgo Estratégico para Ejecutivos",
-            "provider": "Coursera - University of Illinois",
-            "duration_hours": 40,
-            "url": "https://www.coursera.org/specializations/strategic-leadership",
-            "cost": "$49/mes",
-            "relevance": "Alta - Desarrollo de habilidades de liderazgo"
-        },
-        {
-            "type": "book",
-            "title": "Good to Great: Why Some Companies Make the Leap and Others Don't",
-            "author": "Jim Collins",
-            "relevance": "Transformación organizacional y liderazgo",
-            "estimated_reading_hours": 12
-        },
-        {
-            "type": "book",
-            "title": "The Five Dysfunctions of a Team",
-            "author": "Patrick Lencioni",
-            "relevance": "Gestión de equipos de alto rendimiento",
-            "estimated_reading_hours": 8
-        },
-        {
-            "type": "course",
-            "title": "Data-Driven Decision Making",
-            "provider": "edX - MIT",
-            "duration_hours": 30,
-            "url": "https://www.edx.org/course/data-driven-decision-making",
-            "cost": "Gratis (certificado $99)",
-            "relevance": "Media - Mejora de habilidades analíticas"
-        },
-        {
-            "type": "mentoring",
-            "title": "Programa de Mentoría Ejecutiva",
-            "provider": "Interno - Sendos",
-            "duration_months": 6,
-            "description": "Mentoría 1:1 con ejecutivo senior",
-            "relevance": "Alta - Aprendizaje directo de líderes experimentados"
-        },
-        {
-            "type": "workshop",
-            "title": "Taller de Comunicación Ejecutiva",
-            "provider": "Dale Carnegie",
-            "duration_hours": 16,
-            "description": "Desarrollo de habilidades de presentación y comunicación",
-            "relevance": "Alta - Esencial para roles de liderazgo"
-        }
-    ]
-    
-    return {
-        "recommended_paths": recommended_paths,
-        "skill_development_plan": skill_development_plan,
-        "learning_resources": learning_resources
     }
 
 

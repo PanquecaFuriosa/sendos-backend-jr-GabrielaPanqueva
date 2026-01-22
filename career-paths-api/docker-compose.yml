@@ -1,51 +1,19 @@
-version: '3.8'
-
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: career_paths_db
+  postgres:
+    image: postgres:15
     environment:
+      POSTGRES_DB: sendos_test
       POSTGRES_USER: sendos
       POSTGRES_PASSWORD: sendos123
-      POSTGRES_DB: career_paths_db
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sendos"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
-
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: career_paths_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./app:/app/app
-      - ./tests:/app/tests
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://sendos:sendos123@db:5432/career_paths_db
-      - AI_SERVICE_BASE_URL=http://ai-mock:8001
-      - DEBUG=True
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  ai-mock:
-    build:
-      context: .
-      dockerfile: Dockerfile.ai-mock
-    container_name: ai_mock_service
-    ports:
-      - "8001:8001"
-    restart: unless-stopped
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
   postgres_data:

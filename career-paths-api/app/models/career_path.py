@@ -20,21 +20,21 @@ class CareerPathStatus(str, enum.Enum):
 
 class CareerPath(Base):
     """
-    Modelo de Career Path - Sendero de carrera generado por IA.
-    Representa una ruta de desarrollo profesional completa.
+    Career Path model - AI-generated career path.
+    Represents a complete professional development route.
     """
     __tablename__ = "career_paths"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
-    # Información del sendero
+    # Path information
     path_name = Column(String, nullable=False)  # "Ruta de Liderazgo Regional"
-    recommended = Column(Boolean, default=False)  # Si es la ruta recomendada
+    recommended = Column(Boolean, default=False)  # If it's the recommended path
     total_duration_months = Column(Float, nullable=False)
     feasibility_score = Column(Float, nullable=True)  # 0.0 - 1.0
     
-    # Estado
+    # Status
     status = Column(SQLEnum(CareerPathStatus), default=CareerPathStatus.GENERATED, nullable=False)
     
     # Timestamps

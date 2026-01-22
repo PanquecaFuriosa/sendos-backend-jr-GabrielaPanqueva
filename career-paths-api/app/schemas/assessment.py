@@ -25,7 +25,7 @@ class SkillsAssessmentResponse(BaseModel):
     
     @classmethod
     def from_assessment(cls, assessment):
-        """Crear desde modelo Assessment."""
+        """Create from Assessment model."""
         return cls(
             assessment_id=assessment.id,
             user_id=assessment.user_id,

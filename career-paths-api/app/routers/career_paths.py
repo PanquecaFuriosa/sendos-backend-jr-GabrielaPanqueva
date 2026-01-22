@@ -34,12 +34,12 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
     Genera senderos de carrera en segundo plano usando el servicio de IA.
     """
     try:
-        # Obtener el usuario
+        # Get the user
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             return
         
-        # Obtener el assessment más reciente completado
+        # Get the most recent completed assessment
         latest_assessment = db.query(Assessment).filter(
             and_(
                 Assessment.user_id == user_id,
@@ -74,7 +74,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
             )
         ).update({"status": CareerPathStatus.ARCHIVED})
         
-        # Crear los nuevos senderos
+        # Create the new paths
         paths_data = career_data.get("generated_paths", [])
         for path_data in paths_data:
             career_path = CareerPath(
@@ -88,7 +88,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
             db.add(career_path)
             db.flush()
             
-            # Crear los pasos del sendero
+            # Create the path steps
             steps_data = path_data.get("steps", [])
             for step_data in steps_data:
                 step = CareerPathStep(
@@ -102,7 +102,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
                 db.add(step)
                 db.flush()
                 
-                # Crear acciones de desarrollo
+                # Create development actions
                 actions_data = step_data.get("development_actions", [])
                 for action_data in actions_data:
                     if isinstance(action_data, dict):
@@ -141,14 +141,14 @@ async def get_career_paths(
     db: Session = Depends(get_db)
 ):
     """
-    Obtiene los senderos de carrera de un usuario.
-    Si no existen, los genera automáticamente en segundo plano.
+    Gets a user's career paths.
+    If they don't exist, generates them automatically in the background.
     
-    - **user_id**: ID del usuario
+    - **user_id**: User ID
     
-    Retorna lista de senderos generados con información resumida.
+    Returns list of generated paths with summary information.
     """
-    # Verificar que el usuario existe
+    # Verify user exists
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
@@ -156,7 +156,7 @@ async def get_career_paths(
             detail=f"Employee with ID {user_id} not found."
         )
     
-    # Buscar senderos generados del usuario
+    # Search for user's generated paths
     career_paths = db.query(CareerPath).filter(
         and_(
             CareerPath.user_id == user_id,
@@ -165,7 +165,7 @@ async def get_career_paths(
     ).order_by(CareerPath.generated_at.desc()).all()
     
     if not career_paths:
-        # No existen, verificar si hay assessment completado
+        # Don't exist, check if there's a completed assessment
         latest_assessment = db.query(Assessment).filter(
             and_(
                 Assessment.user_id == user_id,
@@ -179,7 +179,7 @@ async def get_career_paths(
                 detail=f"No completed assessment found for user {user_id}. Please complete evaluations first."
             )
         
-        # Generar senderos en segundo plano
+        # Generate paths in the background
         background_tasks.add_task(generate_career_paths_task, user_id, db)
         
         raise HTTPException(
@@ -209,11 +209,11 @@ async def get_career_path_steps(
     db: Session = Depends(get_db)
 ):
     """
-    Obtiene los pasos detallados de un sendero específico.
+    Gets detailed steps for a specific path.
     
-    - **path_id**: ID del sendero
+    - **path_id**: Path ID
     
-    Retorna los pasos con competencias requeridas y acciones de desarrollo.
+    Returns steps with required competencies and development actions.
     """
     career_path = db.query(CareerPath).filter(CareerPath.id == path_id).first()
     
@@ -223,7 +223,7 @@ async def get_career_path_steps(
             detail=f"Path with ID {path_id} not found."
         )
     
-    # Construir respuesta con pasos
+    # Build response with steps
     steps_response = []
     for step in career_path.steps:
         step_detail = CareerPathStepDetail(

@@ -30,9 +30,9 @@ class Assessment(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     cycle_id = Column(UUID(as_uuid=True), ForeignKey("evaluation_cycles.id"), nullable=False, index=True)
     
-    # Perfil de IA (JSONB para mejor rendimiento en PostgreSQL)
+    # AI profile (JSONB for better performance in PostgreSQL)
     ai_profile = Column(JSONB, nullable=True)
-    # Estructura según spec de arquitectura:
+    # Structure according to architecture spec:
     # {
     #   "strengths": [{skill, proficiency_level, score, evidence}],
     #   "growth_areas": [{skill, current_level, target_level, gap_score, priority}],

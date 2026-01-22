@@ -19,7 +19,7 @@ class CareerPathSummaryResponse(BaseModel):
     
     @classmethod
     def from_career_path(cls, path):
-        """Crear desde modelo CareerPath."""
+        """Create from CareerPath model."""
         return cls(
             path_id=path.id,
             path_name=path.path_name,

@@ -18,10 +18,10 @@ class DevelopmentAction(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
-    # Relación con step (weak entity)
+    # Relationship with step (weak entity)
     step_id = Column(UUID(as_uuid=True), ForeignKey("career_path_steps.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    # Información de la acción
+    # Action information
     type = Column(String, nullable=False)  # "training", "project", "mentoring", etc.
     description = Column(Text, nullable=False)
     

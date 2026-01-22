@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./app ./app
 COPY ./alembic ./alembic
 COPY ./alembic.ini .
+COPY init_db.py .
 
 # Exponer puerto
 EXPOSE 8000

@@ -15,7 +15,7 @@ class EvaluationAnswerCreate(BaseModel):
 
 
 class EvaluationCreate(BaseModel):
-    """Schema para crear una nueva evaluación."""
+    """Schema to create a new evaluation."""
     evaluator_id: UUID
     evaluatee_id: UUID
     cycle_id: UUID

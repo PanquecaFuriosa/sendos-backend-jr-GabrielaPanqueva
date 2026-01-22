@@ -1,6 +1,6 @@
 """
-Servicio de integración con IA para análisis de habilidades y generación de senderos de carrera.
-Incluye retry logic con tenacity y manejo robusto de errores.
+AI integration service for skills analysis and career path generation.
+Includes retry logic with tenacity and robust error handling.
 """
 import httpx
 import asyncio
@@ -19,7 +19,7 @@ settings = get_settings()
 
 class AIIntegrationService:
     """
-    Servicio para integrar con el servicio de IA (mock o real).
+    Service to integrate with the AI service (mock or real).
     """
     
     def __init__(self):
@@ -34,11 +34,11 @@ class AIIntegrationService:
     )
     async def analyze_skills(self, evaluation_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Llama al servicio de IA para analizar habilidades basadas en la evaluación 360°.
-        Incluye retry automático (máximo 3 intentos con backoff exponencial).
+        Calls the AI service to analyze skills based on 360° evaluation.
+        Includes automatic retry (max 3 attempts with exponential backoff).
         
         Args:
-            evaluation_data: Datos de la evaluación en formato dict
+            evaluation_data: Evaluation data in dict format
                 Expected structure:
                 {
                     "user_id": str,
@@ -59,7 +59,7 @@ class AIIntegrationService:
                 }
             
         Returns:
-            Dict con el perfil de habilidades y preparación para roles
+            Dict with skills profile and role readiness
                 {
                     "strengths": [str],
                     "growth_areas": [str],
@@ -73,10 +73,10 @@ class AIIntegrationService:
                     ]
                 }
         """
-        # Simular latencia (2-5 segundos)
+        # Simulate latency (2-5 seconds)
         await asyncio.sleep(random.uniform(2.0, 5.0))
         
-        # Simular 10% de fallos aleatorios para probar resilience
+        # Simulate 10% random failures to test resilience
         if random.random() < 0.1:
             raise httpx.HTTPError("Simulated AI service failure")
         
@@ -105,15 +105,15 @@ class AIIntegrationService:
         ai_profile: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Llama al servicio de IA para generar senderos de carrera personalizados.
-        Incluye retry automático (máximo 3 intentos con backoff exponencial).
+        Calls the AI service to generate personalized career paths.
+        Includes automatic retry (max 3 attempts with exponential backoff).
         
         Args:
-            user_profile: Perfil del usuario (posición actual, experiencia, etc.)
-            ai_profile: Perfil de IA del assessment completado
+            user_profile: User profile (current position, experience, etc.)
+            ai_profile: AI profile from completed assessment
             
         Returns:
-            Dict con senderos de carrera generados
+            Dict with generated career paths
                 {
                     "generated_paths": [
                         {
@@ -140,10 +140,10 @@ class AIIntegrationService:
                     ]
                 }
         """
-        # Simular latencia (2-5 segundos)
+        # Simulate latency (2-5 seconds)
         await asyncio.sleep(random.uniform(2.0, 5.0))
         
-        # Simular 10% de fallos aleatorios
+        # Simulate 10% random failures
         if random.random() < 0.1:
             raise httpx.HTTPError("Simulated AI service failure")
         
@@ -165,5 +165,5 @@ class AIIntegrationService:
                 raise
 
 
-# Instancia singleton del servicio
+# Singleton instance of the service
 ai_service = AIIntegrationService()

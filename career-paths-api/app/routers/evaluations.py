@@ -47,7 +47,7 @@ async def check_cycle_completion_and_trigger_ai(evaluatee_id: UUID, cycle_id: UU
     for eval in evaluations:
         completed_types.add(eval.evaluator_relationship)
     
-    # Verificar si tiene al menos: SELF + MANAGER + 1 PEER
+    # Check if it has at least: SELF + MANAGER + 1 PEER
     has_self = EvaluatorRelationship.SELF in completed_types
     has_manager = EvaluatorRelationship.MANAGER in completed_types
     has_peer = EvaluatorRelationship.PEER in completed_types
@@ -81,7 +81,7 @@ async def create_evaluation(
     
     Si se completa el ciclo (SELF + MANAGER + PEER), dispara procesamiento de IA automáticamente.
     """
-    # Verificar que el ciclo existe
+    # Verify the cycle exists
     cycle = db.query(EvaluationCycle).filter(EvaluationCycle.id == evaluation.cycle_id).first()
     if not cycle:
         raise HTTPException(
@@ -89,7 +89,7 @@ async def create_evaluation(
             detail=f"Evaluation cycle with ID {evaluation.cycle_id} not found."
         )
     
-    # Verificar que evaluador y evaluado existen
+    # Verify evaluator and evaluatee exist
     evaluator = db.query(User).filter(User.id == evaluation.evaluator_id).first()
     if not evaluator:
         raise HTTPException(
@@ -104,7 +104,7 @@ async def create_evaluation(
             detail=f"The specified employee ({evaluation.evaluatee_id}) does not exist."
         )
     
-    # Verificar que todas las competencias existen
+    # Verify all competencies exist
     for answer in evaluation.answers:
         competency = db.query(Competency).filter(Competency.id == answer.competency_id).first()
         if not competency:
@@ -114,7 +114,7 @@ async def create_evaluation(
             )
     
     try:
-        # Crear la evaluación
+        # Create the evaluation
         db_evaluation = Evaluation(
             evaluator_id=evaluation.evaluator_id,
             evaluatee_id=evaluation.evaluatee_id,
@@ -127,7 +127,7 @@ async def create_evaluation(
         db.add(db_evaluation)
         db.flush()  # Para obtener el ID
         
-        # Crear los detalles de evaluación
+        # Create evaluation details
         for answer in evaluation.answers:
             detail = EvaluationDetail(
                 evaluation_id=db_evaluation.id,
@@ -140,7 +140,7 @@ async def create_evaluation(
         db.commit()
         db.refresh(db_evaluation)
         
-        # Verificar si el ciclo está completo y disparar IA en background
+        # Check if cycle is complete and trigger AI in background
         background_tasks.add_task(
             check_cycle_completion_and_trigger_ai,
             evaluation.evaluatee_id,
@@ -186,7 +186,7 @@ async def get_evaluation(
             comments=detail.comments
         ))
     
-    # Construir respuesta
+    # Build response
     response = EvaluationFullResponse(
         id=evaluation.id,
         evaluator_id=evaluation.evaluator_id,
@@ -210,10 +210,10 @@ async def list_evaluations(
     db: Session = Depends(get_db)
 ):
     """
-    Lista todas las evaluaciones.
+    Lists all evaluations.
     
-    - **skip**: Número de registros a saltar (paginación)
-    - **limit**: Número máximo de registros a retornar
+    - **skip**: Number of records to skip (pagination)
+    - **limit**: Maximum number of records to return
     """
     evaluations = db.query(Evaluation).offset(skip).limit(limit).all()
     return evaluations

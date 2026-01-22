@@ -18,7 +18,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 
 def override_get_db():
-    """Override de la función get_db para usar base de datos de test."""
+    """Override get_db function to use test database."""
     try:
         db = TestingSessionLocal()
         yield db
@@ -28,7 +28,7 @@ def override_get_db():
 
 @pytest.fixture()
 def db_session():
-    """Fixture para sesión de base de datos."""
+    """Fixture for database session."""
     Base.metadata.create_all(bind=engine)
     yield TestingSessionLocal()
     Base.metadata.drop_all(bind=engine)

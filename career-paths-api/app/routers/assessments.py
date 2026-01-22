@@ -28,7 +28,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
     Recopila todas las evaluaciones del ciclo y llama al servicio de IA.
     """
     try:
-        # Verificar si ya existe un assessment para este usuario/ciclo
+        # Check if an assessment already exists for this user/cycle
         existing_assessment = db.query(Assessment).filter(
             and_(
                 Assessment.user_id == user_id,
@@ -41,7 +41,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
             return
         
         if not existing_assessment:
-            # Crear nuevo assessment
+            # Create new assessment
             assessment = Assessment(
                 user_id=user_id,
                 cycle_id=cycle_id,
@@ -118,17 +118,17 @@ async def get_skills_assessment(
     db: Session = Depends(get_db)
 ):
     """
-    Obtiene el assessment de habilidades más reciente de un usuario.
+    Gets the most recent skills assessment for a user.
     
-    - **user_id**: ID del usuario
+    - **user_id**: User ID
     
-    Retorna el perfil de habilidades generado por IA con:
-    - strengths: Fortalezas identificadas
-    - growth_areas: Áreas de mejora
-    - hidden_talents: Talentos ocultos
-    - readiness_for_roles: Preparación para diferentes roles
+    Returns the AI-generated skills profile with:
+    - strengths: Identified strengths
+    - growth_areas: Areas for improvement
+    - hidden_talents: Hidden talents
+    - readiness_for_roles: Readiness for different roles
     """
-    # Verificar que el usuario existe
+    # Verify user exists
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
@@ -136,7 +136,7 @@ async def get_skills_assessment(
             detail=f"Employee with ID {user_id} not found."
         )
     
-    # Obtener el assessment más reciente completado
+    # Get the most recent completed assessment
     assessment = db.query(Assessment).filter(
         and_(
             Assessment.user_id == user_id,

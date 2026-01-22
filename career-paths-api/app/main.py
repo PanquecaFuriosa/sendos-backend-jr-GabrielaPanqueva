@@ -1,5 +1,5 @@
 """
-Aplicación principal de FastAPI.
+FastAPI main application.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +9,12 @@ from app.routers import evaluations, assessments, career_paths
 
 settings = get_settings()
 
-# Crear tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+# Create database tables
+# NOTE: Tables are now created via Alembic migrations
+# Run: alembic upgrade head
+# Base.metadata.create_all(bind=engine)
 
-# Inicializar aplicación FastAPI
+# Initialize FastAPI application
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Sistema de evaluación 360° con generación inteligente de senderos de carrera usando IA",
@@ -21,16 +23,16 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configurar CORS
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especificar dominios permitidos
+    allow_origins=["*"],  # In production, specify allowed domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir routers
+# Include routers
 app.include_router(
     evaluations.router,
     prefix=f"{settings.API_V1_PREFIX}/evaluations",
@@ -61,5 +63,5 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint para verificar que la API está funcionando."""
+    """Health check endpoint to verify the API is running."""
     return {"status": "healthy"}

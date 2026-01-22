@@ -35,26 +35,26 @@ class Evaluation(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
-    # Evaluador y evaluado (relación N:M con User)
+    # Evaluator and evaluatee (N:M relationship with User)
     evaluator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     evaluatee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
-    # Ciclo de evaluación
+    # Evaluation cycle
     cycle_id = Column(UUID(as_uuid=True), ForeignKey("evaluation_cycles.id"), nullable=False, index=True)
     
-    # Tipo de relación
+    # Relationship type
     evaluator_relationship = Column(SQLEnum(EvaluatorRelationship), nullable=False)
     
     # Feedback general
     general_feedback = Column(Text, nullable=True)
     
-    # Estado
+    # Status
     status = Column(SQLEnum(EvaluationStatus), default=EvaluationStatus.SUBMITTED, nullable=False)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Constraint de unicidad: un evaluador solo puede evaluar una vez a una persona en un ciclo
+    # Uniqueness constraint: an evaluator can only evaluate a person once per cycle
     __table_args__ = (
         UniqueConstraint('evaluator_id', 'evaluatee_id', 'cycle_id', name='uq_evaluator_evaluatee_cycle'),
         Index('ix_evaluations_evaluatee_cycle', 'evaluatee_id', 'cycle_id'),

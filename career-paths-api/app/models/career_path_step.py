@@ -18,10 +18,10 @@ class CareerPathStep(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
-    # Relación con career path (weak entity)
+    # Relationship with career path (weak entity)
     career_path_id = Column(UUID(as_uuid=True), ForeignKey("career_paths.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    # Información del paso
+    # Step information
     step_order = Column(Integer, nullable=False)  # 1, 2, 3...
     title = Column(String, nullable=False)
     target_role = Column(String, nullable=False)

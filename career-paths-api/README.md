@@ -1,63 +1,100 @@
-# Career Paths API - Sendos
+# Career Paths API - Prueba Técnica Backend Jr - Gabriela Panqueva
 
 Sistema de evaluación 360° con generación inteligente de senderos de carrera usando IA.
 
-**IMPORTANTE**: Esta implementación sigue la arquitectura especificada en [ARCHITECTURE.md](./ARCHITECTURE.md) del repositorio.
+## Documentación
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Arquitectura técnica completa del sistema
+- **[DECISIONS.md](./DECISIONS.md)** - Decisiones de diseño y sus justificaciones
 
 ## Inicio Rápido
 
 ### Prerrequisitos
 - Python 3.11+
 - Docker y Docker Compose
-- PostgreSQL 15+
 
-### Instalación con Docker (Recomendado)
-
-```bash
-# Clonar el repositorio
-git clone <repository-url>
-cd career-paths-api
-
-# Iniciar servicios con Docker Compose
-docker-compose up -d
-
-# Esperar a que la DB esté lista, luego ejecutar migraciones
-docker-compose exec api alembic upgrade head
-
-# Inicializar datos de ejemplo
-docker-compose exec api python init_db.py
-
-# La API estará disponible en http://localhost:8000
-# Documentación interactiva: http://localhost:8000/docs
-# Servicio mock de IA: http://localhost:8001
-```
-
-### Instalación Manual
+### Instalación
 
 ```bash
-# Crear y activar entorno virtual
+# 1. Crear ambiente virtual
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 
-# Instalar dependencias
+# 2. Instalar dependencias
 pip install -r requirements.txt
 
-# Configurar variables de entorno
+# 3. Copiar y configurar variables de entorno
 cp .env.example .env
-# Editar .env con tus configuraciones
 
-# Ejecutar migraciones
+# 4. Levantar PostgreSQL con Docker
+docker-compose up -d
+
+# 5. Esperar que la DB esté lista
+sleep 5
+
+# 6. Ejecutar migraciones
 alembic upgrade head
 
-# Inicializar datos de ejemplo
+# 7. (Opcional) Cargar datos de prueba
 python init_db.py
 
-# En una terminal, iniciar servicio mock de IA
-python ai_mock_service.py
-
-# En otra terminal, iniciar servidor de desarrollo
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 8. Correr la aplicación
+uvicorn app.main:app --reload --port 8000
 ```
+
+La API estará disponible en http://localhost:8000/docs
+
+### Ejecutar tests
+
+```bash
+pytest tests/ -v
+```
+
+## Migraciones de Base de Datos
+
+El proyecto usa **Alembic** para gestionar migraciones de base de datos.
+
+### Primera vez (requerido)
+```bash
+# Con Docker (se ejecutan automáticamente al hacer docker-compose up)
+docker-compose up -d
+
+# Manual - EJECUTAR ANTES de uvicorn
+alembic upgrade head
+```
+
+### Crear nueva migración (cuando cambies modelos)
+```bash
+alembic revision --autogenerate -m "Descripción del cambio"
+```
+
+### Ver historial de migraciones
+```bash
+alembic history
+```
+
+### Revertir última migración
+```bash
+alembic downgrade -1
+```
+
+## Inicialización de Datos de Ejemplo
+
+Después de ejecutar las migraciones, puedes cargar datos de ejemplo:
+
+```bash
+# Con Docker
+docker-compose exec api python init_db.py
+
+# Manual (después de alembic upgrade head)
+python init_db.py
+```
+
+Esto crea:
+- 5 usuarios de ejemplo
+- 2 ciclos de evaluación
+- 7 competencias estándar
+- Múltiples evaluaciones 360° con detalles
 
 ## Estructura del Proyecto
 
@@ -89,9 +126,13 @@ career-paths-api/
 │   │   └── career_paths.py
 │   └── services/
 │       └── ai_integration.py
+├── alembic/                    # Migraciones de base de datos
+│   ├── versions/               # Archivos de migración
+│   │   └── 001_initial_migration.py
+│   └── env.py                  # Configuración de Alembic
 ├── tests/
 │   └── test_api.py
-├── alembic/                    # Migraciones
+├── alembic.ini                 # Configuración de Alembic
 ├── ai_mock_service.py
 ├── init_db.py
 ├── docker-compose.yml
@@ -258,6 +299,50 @@ Respuesta 409 Conflict: El sendero ya está en progreso
 
 ```bash
 # Ejecutar todos los tests
+docker-compose exec api pytest
+
+# Con coverage
+docker-compose exec api pytest --cov=app --cov-report=html
+
+# Tests específicos
+docker-compose exec api pytest tests/test_api.py -v
+
+# Ver reporte de coverage (HTML)
+start htmlcov/index.html  # Windows
+open htmlcov/index.html   # macOS/Linux
+```
+
+## Ejemplos de Uso
+
+### Crear evaluación 360°
+```bash
+curl -X POST "http://localhost:8000/api/v1/evaluations" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "evaluatee_id": "uuid-user-1",
+    "evaluator_id": "uuid-user-2",
+    "cycle_id": "uuid-cycle-1",
+    "evaluator_relationship": "PEER",
+    "answers": [
+      {"competency_id": "uuid-comp-1", "score": 8, "comments": "Excelente"}
+    ]
+  }'
+```
+
+### Obtener assessment de habilidades
+```bash
+curl "http://localhost:8000/api/v1/skills-assessments/uuid-user-1"
+```
+
+### Obtener senderos de carrera
+```bash
+curl "http://localhost:8000/api/v1/career-paths/uuid-user-1"
+```
+
+## Arquitectura Técnica
+
+```bash
+# Ejecutar todos los tests
 pytest
 
 # Con cobertura
@@ -302,7 +387,9 @@ Esta implementación sigue fielmente la arquitectura definida en el documento AR
 - Constraints únicos: (evaluator, evaluatee, cycle), (user, cycle) para assessments
 - Validaciones: scores 1-10, relationship types, SELF evaluation rules
 
-## Docker
+Para más detalles, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y [DECISIONS.md](./DECISIONS.md).
+
+## Deployment técnicos, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y [DECISIONS.md](./DECISIONS
 
 ```bash
 # Construir imagen
@@ -342,7 +429,3 @@ alembic downgrade -1
 # Inicializar datos de ejemplo
 python init_db.py
 ```
-
-## Licencia
-
-Este proyecto es parte de una prueba técnica para Sendos.

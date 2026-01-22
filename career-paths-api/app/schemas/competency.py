@@ -14,7 +14,7 @@ class CompetencyBase(BaseModel):
 
 
 class CompetencyCreate(CompetencyBase):
-    """Schema para crear una competencia."""
+    """Schema to create a competency."""
     pass
 
 

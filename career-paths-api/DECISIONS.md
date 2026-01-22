@@ -1,236 +1,310 @@
-# Decisiones Técnicas - Career Paths API
+# Decisiones de Diseño e Implementación
 
-Este documento explica las principales decisiones técnicas tomadas durante el desarrollo del proyecto y la justificación detrás de cada una.
+Esta sección explica las decisiones arquitectónicas y de diseño tomadas durante el desarrollo del sistema, justificando cada elección.
 
-## 1. Framework Web: FastAPI
+## 1. Campos JSONB para Datos Flexibles
 
-**Decisión:** Usar FastAPI como framework web principal.
+**Decisión:** Usar campos JSONB de PostgreSQL para `ai_profile` en Assessments y estructuras complejas.
 
-**Razones:**
-- ✅ **Alto rendimiento**: Comparable a Node.js y Go
-- ✅ **Validación automática**: Pydantic integrado para validación de datos
-- ✅ **Documentación interactiva**: Swagger UI y ReDoc automáticos
-- ✅ **Type hints nativos**: Mejor experiencia de desarrollo y menos bugs
-- ✅ **Async/await**: Soporte nativo para operaciones asíncronas
-- ✅ **Estándares modernos**: OpenAPI, JSON Schema
+**Justificación:**
+- **Flexibilidad de schema**: Permite evolución del modelo de IA sin migraciones de base de datos
+- **Datos anidados**: Representación natural de estructuras complejas (strengths, growth_areas, hidden_talents)
+- **Output de IA variable**: La estructura de respuesta de servicios de IA puede cambiar
+- **Performance**: PostgreSQL JSONB permite indexación y queries eficientes
+- **Tipo nativo**: No requiere serialización/deserialización manual
 
-**Alternativas consideradas:**
-- Django REST Framework: Más pesado, mayor curva de aprendizaje
-- Flask: Menos features out-of-the-box, sin validación automática
+**Trade-offs aceptados:**
+- Validación menos estricta a nivel de base de datos
+- Queries sobre campos JSON son más complejos que SQL tradicional
+- Pérdida de normalización en algunos casos
 
-## 2. Base de Datos: PostgreSQL
+**Mitigación:** 
+- Validación exhaustiva con Pydantic en capa de aplicación
+- Documentación clara del schema esperado en JSONB
+- Índices GIN sobre campos JSONB críticos para performance
 
-**Decisión:** Usar PostgreSQL como base de datos principal.
+## 2. Modelo de Datos: Weak Entities
 
-**Razones:**
-- ✅ **Robustez**: ACID compliant, confiable para producción
-- ✅ **Soporte JSON**: Campos JSONB para datos flexibles (competencias, senderos)
-- ✅ **UUID nativo**: Mejor para sistemas distribuidos
-- ✅ **Extensibilidad**: Múltiples extensiones disponibles
-- ✅ **Comunidad**: Amplia adopción en empresas
+**Decisión:** Implementar `EvaluationDetail`, `CareerPathStep` y `DevelopmentAction` como weak entities.
 
-**Alternativas consideradas:**
-- MySQL: Menos features avanzados para JSON
-- MongoDB: No relacional, menos apropiado para datos estructurados
+**Justificación:**
+- **Dependencia existencial**: Estos registros no tienen significado sin su entidad padre
+- **Integridad referencial**: Cascade delete automático cuando se elimina el padre
+- **Modelado semántico**: Refleja correctamente la relación de composición
+- **Simplificación**: No requiere gestión independiente de ciclo de vida
 
-## 3. ORM: SQLAlchemy 2.0
+**Diseño:**
+```
+Evaluation 1----* EvaluationDetail
+CareerPath 1----* CareerPathStep
+CareerPathStep 1----* DevelopmentAction
+```
 
-**Decisión:** Usar SQLAlchemy como ORM.
+**Ventajas:**
+- Garantiza consistencia de datos
+- Simplifica queries (siempre se accede vía padre)
+- Evita registros huérfanos
 
-**Razones:**
-- ✅ **Maduro y probado**: Estable en producción
-- ✅ **Flexibilidad**: Permite queries complejas cuando sea necesario
-- ✅ **Type safety**: Soporte para type hints en v2.0
-- ✅ **Migraciones**: Integración con Alembic
-- ✅ **Async support**: Compatible con FastAPI async
+## 3. Separación Evaluator/Evaluatee
 
-**Alternativas consideradas:**
-- Django ORM: Acoplado a Django
-- Tortoise ORM: Menos maduro, comunidad más pequeña
+**Decisión:** Modelo con dos foreign keys a User: `evaluator_id` y `evaluatee_id`.
 
-## 4. Validación: Pydantic v2
+**Justificación:**
+- **Flexibilidad**: Soporta todas las relaciones 360° (SELF, MANAGER, PEER, DIRECT_REPORT)
+- **Trazabilidad**: Identifica claramente quién evaluó a quién
+- **Queries eficientes**: Fácil obtener evaluaciones dadas o recibidas
+- **Normalización**: Evita duplicación de datos de usuario
 
-**Decisión:** Usar Pydantic para validación de datos y settings.
+**Alternativa descartada:**
+- Tabla intermedia User-Evaluation-User: Más compleja sin beneficio adicional
 
-**Razones:**
-- ✅ **Integración nativa**: FastAPI lo usa internamente
-- ✅ **Rendimiento**: v2 está basado en Rust (muy rápido)
-- ✅ **Type safety**: Validación en tiempo de ejecución
-- ✅ **Serialización**: JSON encoding/decoding automático
-- ✅ **Settings management**: BaseSettings para configuración
+**Constraint único:**
+```sql
+UniqueConstraint(evaluator_id, evaluatee_id, cycle_id)
+```
+Garantiza que un evaluador solo evalúa una vez a una persona por ciclo.
 
-**Alternativas consideradas:**
-- Marshmallow: Más verboso, menos integrado
-- Cerberus: No tiene type hints
+## 4. Ciclos de Evaluación Independientes
 
-## 5. Containerización: Docker
+**Decisión:** Tabla `EvaluationCycles` separada para gestionar períodos de evaluación.
 
-**Decisión:** Usar Docker y Docker Compose para desarrollo y despliegue.
+**Justificación:**
+- **Organización temporal**: Agrupa evaluaciones por período (Q1 2026, Q2 2026)
+- **Estado del ciclo**: Permite controlar cuándo un ciclo está activo o cerrado
+- **Análisis histórico**: Facilita comparación de evolución entre ciclos
+- **Reglas de negocio**: Puede prevenir evaluaciones en ciclos cerrados
 
-**Razones:**
-- ✅ **Reproducibilidad**: Mismo entorno en dev y prod
-- ✅ **Aislamiento**: Dependencias encapsuladas
-- ✅ **Facilidad**: Un comando para levantar todo
-- ✅ **Estándar de industria**: Ampliamente adoptado
-- ✅ **Multi-servicio**: db, api, ai-mock en un solo compose
+**Diseño:**
+- Campos: `name`, `start_date`, `end_date`, `status` (ACTIVE, CLOSED, ARCHIVED)
+- Relación 1:N con Evaluations y Assessments
 
-**Alternativas consideradas:**
-- Virtualenv solo: No aísla servicios externos (PostgreSQL)
-- Kubernetes directo: Overkill para desarrollo local
+## 5. Catálogo de Competencias Normalizado
 
-## 6. Identificadores: UUID en lugar de Auto-increment
+**Decisión:** Tabla `Competencies` separada con foreign keys desde `EvaluationDetail`.
 
-**Decisión:** Usar UUID (v4) como primary keys.
+**Justificación:**
+- **Consistencia**: Todos usan los mismos nombres de competencias
+- **Gestión centralizada**: Fácil agregar/modificar competencias
+- **Internacionalización**: Permite traducción de competencias
+- **Reportes**: Facilita análisis agregado por competencia
 
-**Razones:**
-- ✅ **Seguridad**: No predecibles, evita enumeración
-- ✅ **Distribución**: Generación sin coordinación entre servicios
-- ✅ **Merges**: Sin conflictos al combinar datos de múltiples fuentes
-- ✅ **RESTful**: IDs no revelan cantidad de recursos
+**Alternativa descartada:**
+- Strings libres en cada evaluación: Inconsistencias, typos, no normalizable
 
-**Desventajas aceptadas:**
-- ❌ URLs más largas
-- ❌ Índices ligeramente menos eficientes (mitigado con UUIDv7 en futuro)
+**Estructura:**
+```sql
+Competencies
+  - id (UUID)
+  - name (String, unique)
+  - description (Text)
+  - category (String) -- e.g., "Technical", "Leadership"
+```
 
-## 7. Campos JSON para Datos Flexibles
+## 6. Procesamiento Asíncrono con Background Tasks
 
-**Decisión:** Usar campos JSON para `evaluation_data`, `recommended_paths`, etc.
+**Decisión:** Usar FastAPI BackgroundTasks para procesamiento de IA.
 
-**Razones:**
-- ✅ **Flexibilidad**: Schema puede evolucionar sin migraciones
-- ✅ **Complejidad**: Datos anidados naturalmente representados
-- ✅ **AI output**: Estructura de respuesta de IA puede variar
-- ✅ **PostgreSQL JSONB**: Soporte nativo con índices y queries
-
-**Desventajas aceptadas:**
-- ❌ Validación menos estricta en BD (mitigado con Pydantic)
-- ❌ Queries complejas sobre JSON menos eficientes
-
-## 8. Background Tasks para Procesamiento Asíncrono
-
-**Decisión:** Usar FastAPI BackgroundTasks para assessment y career path generation.
-
-**Razones:**
-- ✅ **Simplicidad**: No requiere infraestructura adicional (Celery, RabbitMQ)
-- ✅ **Suficiente para MVP**: Procesamiento en segundos, no horas
-- ✅ **Respuesta inmediata**: Cliente no espera procesamiento largo
-- ✅ **Built-in**: Parte de FastAPI, sin dependencias extra
+**Justificación:**
+- **Simplicidad**: No requiere infraestructura adicional (Celery, RabbitMQ, Redis)
+- **Apropiado para MVP**: Procesamiento tarda segundos, no horas
+- **Respuesta inmediata**: Cliente recibe confirmación sin esperar procesamiento
+- **Built-in**: Parte de FastAPI, sin dependencias externas
 
 **Limitaciones conocidas:**
-- ❌ No persistente: Tareas se pierden si el proceso muere
-- ❌ No escalable: Limitado a un worker
+- No persistente: tareas se pierden si el proceso muere
+- No escalable horizontalmente: limitado a workers del proceso FastAPI
+- Sin retry automático: debe ser implementado manualmente
 
-**Plan futuro:**
-- Migrar a Celery + Redis cuando sea necesario escalar
+**Plan de evolución:**
+- Fase 1 (MVP): Background Tasks ✅
+- Fase 2 (Producción): Migrar a Celery + Redis
+- Fase 3 (Escala): Queue distribuido (AWS SQS, RabbitMQ)
 
-## 9. AI Service Mock
-
-**Decisión:** Implementar servicio mock de IA en lugar de integración real.
-
-**Razones:**
-- ✅ **Desarrollo autónomo**: No depende de servicio externo
-- ✅ **Testing**: Resultados predecibles
-- ✅ **Demo**: Funciona sin API keys o configuración compleja
-- ✅ **Reemplazable**: Fácil cambiar a servicio real más tarde
-
-**Implementación:**
-- Servicio FastAPI separado en puerto 8001
-- Lógica simple basada en promedios de scores
-- Datos mock realistas y completos
-
-## 10. Testing con SQLite
-
-**Decisión:** Usar SQLite en memoria para tests en lugar de PostgreSQL.
-
-**Razones:**
-- ✅ **Velocidad**: Tests mucho más rápidos
-- ✅ **Simplicidad**: No requiere BD levantada
-- ✅ **CI/CD**: Fácil de configurar en pipelines
-- ✅ **Aislamiento**: Cada test tiene BD limpia
-
-**Limitaciones:**
-- ❌ Dialectos diferentes: Algunas features de PostgreSQL no disponibles
-- ❌ UUID handling: Diferente comportamiento
-
-**Mitigación:**
-- Tests de integración usan PostgreSQL real
-
-## 11. Sin Autenticación (MVP)
+## 7. Sin Autenticación en MVP
 
 **Decisión:** No implementar autenticación en esta versión.
 
-**Razones:**
-- ✅ **Scope**: Prueba técnica enfocada en funcionalidad core
-- ✅ **Tiempo**: Priorizar features de negocio
-- ✅ **Simplicidad**: Menos complejidad en testing
+**Justificación:**
+- **Scope de prueba técnica**: Enfocada en funcionalidad core
+- **Tiempo de desarrollo**: Priorizar features de negocio
+- **Simplicidad en testing**: Sin complejidad de tokens/sesiones
+- **Demostración**: Facilita evaluación de la API
 
-**Próximos pasos:**
-- Implementar JWT authentication
+** Crítico para producción:**
+Esta decisión es solo para MVP. Producción **REQUIERE**:
+- JWT authentication
 - Roles y permisos (RBAC)
-- OAuth2 para integración con SSO
+- Rate limiting por usuario
+- Audit logs
 
-## 12. CORS Permisivo (Desarrollo)
+**Plan de implementación:**
+```python
+# Fase 1: JWT básico
+- POST /auth/login → token
+- Header: Authorization: Bearer <token>
+- Middleware de validación
 
-**Decisión:** Permitir todos los orígenes en CORS.
+# Fase 2: Roles
+- Roles: EMPLOYEE, MANAGER, HR, ADMIN
+- Endpoints con @require_role("MANAGER")
 
-**Razones:**
-- ✅ **Desarrollo**: Facilita testing desde diferentes clientes
-- ✅ **MVP**: No hay frontend específico definido
-
-**Importante:**
-- ⚠️ **Cambiar en producción**: Especificar orígenes permitidos
-- ⚠️ **Seguridad**: CORS restrictivo es crítico en prod
-
-## 13. Estructura de Código Modular
-
-**Decisión:** Separar código en módulos (models, routers, schemas, services).
-
-**Razones:**
-- ✅ **Mantenibilidad**: Fácil encontrar y modificar código
-- ✅ **Testability**: Módulos independientes más fáciles de testear
-- ✅ **Escalabilidad**: Nuevos features no ensucian código existente
-- ✅ **Colaboración**: Múltiples desarrolladores sin conflictos
-
-**Estructura:**
-```
-app/
-├── models/       # SQLAlchemy models
-├── schemas/      # Pydantic schemas
-├── routers/      # FastAPI endpoints
-├── services/     # Business logic
-├── config.py     # Settings
-├── database.py   # DB connection
-└── main.py       # App initialization
+# Fase 3: Permisos granulares
+- Solo evaluador puede ver su evaluación
+- Solo evaluatee puede ver su assessment
 ```
 
-## 14. Versionado de API
+## 8. Estructura Modular de Código
 
-**Decisión:** Incluir `/api/v1` en rutas.
+**Decisión:** Separación clara en módulos: models, schemas, routers, services.
 
-**Razones:**
-- ✅ **Breaking changes**: Permite v2 sin romper clientes
-- ✅ **Best practice**: Estándar de industria
-- ✅ **Futuro**: Facilita evolución de la API
+**Justificación:**
+- **Separation of Concerns**: Cada módulo tiene responsabilidad única
+- **Mantenibilidad**: Fácil localizar y modificar código
+- **Testabilidad**: Módulos independientes facilitan unit tests
+- **Escalabilidad**: Nuevos features no contaminan código existente
+- **Colaboración**: Múltiples desarrolladores sin conflictos de merge
 
-## 15. Soft Delete vs Hard Delete
+**Arquitectura en capas:**
+```
+┌─────────────────────────────────┐
+│  Routers (HTTP Layer)           │ ← FastAPI endpoints
+│  - Validación HTTP               │
+│  - Parsing request/response      │
+└────────────┬────────────────────┘
+             │
+┌────────────▼────────────────────┐
+│  Services (Business Logic)      │ ← Lógica de negocio
+│  - Reglas de negocio             │
+│  - Orquestación                  │
+│  - Llamadas a servicios externos │
+└────────────┬────────────────────┘
+             │
+┌────────────▼────────────────────┐
+│  Models (Data Layer)            │ ← SQLAlchemy models
+│  - Persistencia                  │
+│  - Queries a base de datos       │
+└─────────────────────────────────┘
 
-**Decisión:** Hard delete (sin soft delete implementado).
+         Esquemas (Pydantic)
+         ├── Request schemas
+         └── Response schemas
+```
 
-**Razones:**
-- ✅ **Simplicidad**: Menos lógica en queries
-- ✅ **MVP**: No hay requerimiento de auditoría
+**Ventajas demostradas:**
+- Fácil agregar nuevos endpoints sin modificar modelos
+- Business logic testeable sin levantar servidor HTTP
+- Reuso de lógica entre diferentes endpoints
 
-**Futuro:**
-- Agregar `deleted_at` y `is_deleted` cuando sea necesario
-- Implementar auditoría completa de cambios
+## 9. Hard Delete vs Soft Delete
 
-## Conclusión
+**Decisión:** Implementar hard delete (eliminación física).
 
-Estas decisiones priorizan:
-1. **Rapidez de desarrollo** (MVP funcional)
-2. **Simplicidad** (menos dependencias y complejidad)
-3. **Estándares de industria** (patterns probados)
-4. **Facilidad de testing** (automatización)
-5. **Escalabilidad futura** (arquitectura preparada)
+**Justificación:**
+- **Simplicidad**: Queries más simples, sin filtros `WHERE deleted_at IS NULL`
+- **Performance**: Índices más eficientes sin registros "eliminados"
+- **MVP scope**: No hay requerimiento de auditoría completa
+- **GDPR**: Derecho al olvido requiere eliminación física
 
-Muchas decisiones son apropiadas para un MVP pero necesitarán evolución para producción (autenticación, queue system, monitoring, etc.).
+**Trade-offs:**
+- No hay histórico de cambios
+- No se puede "deshacer" eliminación
+- Dificulta debugging de problemas históricos
+
+**Plan futuro (si se requiere auditoría):**
+```python
+# Agregar a todos los modelos
+deleted_at = Column(DateTime, nullable=True)
+deleted_by = Column(UUID, ForeignKey("users.id"), nullable=True)
+
+# Query manager
+def active_only(query):
+    return query.filter(Model.deleted_at == None)
+
+# Soft delete
+def soft_delete(obj, user_id):
+    obj.deleted_at = datetime.utcnow()
+    obj.deleted_by = user_id
+```
+
+## 10. Testing con SQLite en Memoria
+
+**Decisión:** Usar SQLite in-memory para unit tests, PostgreSQL para integration tests.
+
+**Justificación:**
+- **Velocidad**: SQLite en memoria es ~10x más rápido
+- **Simplicidad**: No requiere servicio de BD corriendo
+- **CI/CD**: Fácil configurar en GitHub Actions
+- **Aislamiento**: Cada test tiene BD limpia automáticamente
+
+**Limitaciones SQLite:**
+- UUID manejo diferente
+- No soporta algunas features de PostgreSQL (JSONB queries avanzados)
+- Dialectos SQL ligeramente diferentes
+
+**Estrategia de testing:**
+```
+Unit tests (70%) → SQLite in-memory
+  - Tests de modelos individuales
+  - Tests de validación Pydantic
+  - Tests de lógica de negocio
+
+Integration tests (30%) → PostgreSQL
+  - Tests de endpoints completos
+  - Tests de queries complejas JSONB
+  - Tests de constraints únicos
+```
+---
+
+## BONUS IMPLEMENTADOS
+
+### 1. Alembic - Migraciones de Base de Datos ⭐ (+5 puntos)
+
+**Implementación:**
+- Alembic configurado con auto-detección de modelos
+- Migración inicial (001_initial_migration.py) con las 9 tablas
+- Integración con Docker: migraciones automáticas al iniciar
+- Comandos documentados en README.md
+
+**Beneficios:**
+- Versionamiento del esquema de BD
+- Rollback seguro de cambios
+- Trabajo en equipo sin conflictos de schema
+- Deployment controlado y auditable
+
+**Archivos clave:**
+- `alembic/env.py`: Configuración con import de modelos
+- `alembic/versions/001_initial_migration.py`: Migración inicial
+- `docker-compose.yml`: Ejecuta `alembic upgrade head` antes de iniciar app
+
+### 2. Tenacity - Retry Logic para Integraciones IA ⭐
+
+**Implementación:**
+```python
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException))
+)
+async def call_ai_service(data):
+    # Llamadas al servicio IA con reintentos automáticos
+```
+
+**Beneficios:**
+- Resiliencia ante fallos temporales de red
+- Experiencia de usuario mejorada (menos errores 500)
+- Backoff exponencial evita saturar servicios externos
+
+### 3. BackgroundTasks - Procesamiento Asíncrono
+
+**Implementación:**
+```python
+@router.post("/api/v1/career-paths")
+async def generate_career_path(background_tasks: BackgroundTasks):
+    background_tasks.add_task(process_career_path_generation, assessment_id)
+    return {"status": "processing"}
+```
+
+**Beneficios:**
+- Respuestas rápidas al usuario (no bloqueantes)
+- Procesamiento pesado en segundo plano
+- Mejor experiencia en generación de rutas (puede tardar varios segundos)

@@ -857,3 +857,81 @@ Eres el Ingeniero de Backend Senior de Sendos, una plataforma de gestión de rec
 
 7. Observabilidad:
    - Usa `logging` para registrar: Inicio del proceso (INFO), Intentos fallidos (WARNING) y Éxito final con el ID del usuario (INFO).
+
+## 1.6 Patrones de Diseño Aplicados
+
+### Repository Pattern (Implícito)
+Los modelos SQLAlchemy actúan como repositorios, encapsulando acceso a datos.
+
+### Service Layer Pattern
+Capa `services/` contiene lógica de negocio, separada de HTTP y persistencia.
+
+### DTO Pattern
+Pydantic schemas actúan como Data Transfer Objects entre capas.
+
+### Dependency Injection
+FastAPI `Depends()` inyecta dependencias (DB session, settings, etc.).
+
+### Factory Pattern
+Funciones helper para crear objetos de prueba en tests.
+
+## 1.7 Consideraciones de Producción
+
+### Pendientes para Producción
+
+**Seguridad:**
+- [ ] Implementar autenticación JWT
+- [ ] Rate limiting por usuario/IP
+- [ ] Validación de roles y permisos
+- [ ] HTTPS obligatorio
+- [ ] Secret key rotation
+- [ ] SQL injection prevention (ya mitigado con ORM)
+- [ ] XSS prevention en responses
+
+**Performance:**
+- [ ] Caché con Redis (assessments, career paths)
+- [ ] Connection pooling optimizado
+- [ ] Índices adicionales basados en queries reales
+- [ ] Query optimization
+- [ ] Lazy loading para relaciones grandes
+
+**Escalabilidad:**
+- [ ] Migrar background tasks a Celery
+- [ ] Load balancer (Nginx/HAProxy)
+- [ ] Multiple replicas de API
+- [ ] Read replicas de PostgreSQL
+- [ ] CDN para assets estáticos
+
+**Observabilidad:**
+- [ ] Logging estructurado (JSON)
+- [ ] Distributed tracing (Jaeger/OpenTelemetry)
+- [ ] Metrics (Prometheus)
+- [ ] Dashboards (Grafana)
+- [ ] Error tracking (Sentry)
+- [ ] Alerting (PagerDuty)
+
+**Datos:**
+- [ ] Backups automáticos de PostgreSQL
+- [ ] Point-in-time recovery
+- [ ] Disaster recovery plan
+- [ ] Data retention policies
+- [ ] GDPR compliance (soft delete, exportación de datos)
+
+**DevOps:**
+- [ ] CI/CD pipeline completo
+- [ ] Automated testing en PRs
+- [ ] Deployment canary/blue-green
+- [ ] Infrastructure as Code (Terraform)
+- [ ] Secrets management (Vault, AWS Secrets Manager)
+
+## 1.8 Conclusión de Diseño
+
+La arquitectura implementada prioriza:
+
+1. **Simplicidad**: Decisiones pragmáticas para MVP funcional
+2. **Estándares**: Patterns probados de la industria
+3. **Escalabilidad**: Diseño preparado para crecer
+4. **Mantenibilidad**: Código claro y bien organizado
+5. **Flexibilidad**: Fácil evolucionar y cambiar
+
+Las decisiones tomadas son apropiadas para un MVP/prueba técnica pero requieren evolución para un sistema de producción enterprise-grade. La arquitectura modular facilita estas mejoras incrementales sin reescritura completa.

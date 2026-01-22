@@ -18,7 +18,7 @@ class EvaluationDetail(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
-    # Relación con evaluación (weak entity)
+    # Relationship with evaluation (weak entity)
     evaluation_id = Column(UUID(as_uuid=True), ForeignKey("evaluations.id", ondelete="CASCADE"), nullable=False, index=True)
     
     # Competencia evaluada
