@@ -15,5 +15,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  ai-mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai-mock
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   postgres_data:

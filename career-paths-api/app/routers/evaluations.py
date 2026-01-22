@@ -164,8 +164,12 @@ async def create_evaluation(
         return EvaluationResponse(
             id=db_evaluation.id,
             employee_id=db_evaluation.employee_id,
+            evaluator_id=db_evaluation.evaluator_id,
+            cycle_id=db_evaluation.cycle_id,
+            evaluator_relationship=db_evaluation.evaluator_relationship.value,
             status=db_evaluation.status.value,
-            created_at=db_evaluation.created_at
+            created_at=db_evaluation.created_at,
+            updated_at=db_evaluation.updated_at
         )
         
     except IntegrityError as e:
@@ -273,21 +277,26 @@ async def process_evaluation(
             detail=f"Evaluation with ID {evaluation_id} not found."
         )
     
-    # Check if already processing
+    # Check if already processed or processing
     from app.models.assessment import Assessment, ProcessingStatus
     existing_assessment = db.query(Assessment).filter(
         and_(
             Assessment.user_id == evaluation.employee_id,
-            Assessment.cycle_id == evaluation.cycle_id,
-            Assessment.processing_status == ProcessingStatus.PROCESSING
+            Assessment.cycle_id == evaluation.cycle_id
         )
     ).first()
     
     if existing_assessment:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="The evaluation is already being processed."
-        )
+        if existing_assessment.processing_status == ProcessingStatus.PROCESSING:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The evaluation is already being processed."
+            )
+        elif existing_assessment.processing_status == ProcessingStatus.COMPLETED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The evaluation has already been processed. Assessment already exists."
+            )
     
     # Process directly (without background task to avoid session issues)
     from app.routers.assessments import trigger_ai_processing

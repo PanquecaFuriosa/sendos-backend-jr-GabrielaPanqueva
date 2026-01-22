@@ -254,7 +254,7 @@ async def generate_career_path(request: CareerPathRequest):
     }
     generated_paths.append(path2)
     
-    # Path 3: Ruta Híbrida (solo si tiene buen balance)
+    # Path 3: Hybrid Route (if applicable)
     if len(strengths) >= 2 and len(growth_areas) <= 3:
         path3 = {
             "path_name": "Ruta Híbrida: Gestión + Especialización",

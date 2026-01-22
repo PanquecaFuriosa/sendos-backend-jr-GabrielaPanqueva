@@ -18,18 +18,18 @@ Sistema de evaluación 360° con generación inteligente de senderos de carrera 
 ```bash
 # 1. Crear ambiente virtual
 python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 2. Instalar dependencias
 pip install -r requirements.txt
 
-# 3. Copiar y configurar variables de entorno
+# 3. Configurar variables de entorno
 cp .env.example .env
 
 # 4. Levantar PostgreSQL con Docker
-docker compose up -d
+docker compose up -d postgres
 
-# 5. Esperar que la DB esté lista
+# 5. Esperar que la DB esté lista (5 segundos)
 sleep 5
 
 # 6. Ejecutar migraciones
@@ -38,66 +38,109 @@ alembic upgrade head
 # 7. (Opcional) Cargar datos de prueba
 python init_db.py
 
-# 8. Iniciar el servicio mock de IA (en otra terminal)
-python -m uvicorn ai_mock_service:app --host 0.0.0.0 --port 8001 &
-
-# 9. Correr la aplicación
+# 8. Iniciar la API
 uvicorn app.main:app --reload --port 8000
 ```
 
-La API estará disponible en http://localhost:8000/docs
-El servicio de IA mock estará en http://localhost:8001/docs
+**Servicios disponibles en:**
+- Documentación API: http://localhost:8000/docs
+- Documentación alternativa: http://localhost:8000/redoc
+- Servicio mock de IA: http://localhost:8001/docs (levantado con docker-compose)
 
-### Ejecutar tests
+**Nota:** El servicio mock de IA se levanta automáticamente con `docker-compose up -d` junto con PostgreSQL.
+
+## Testing
+
+### Ejecutar Todos los Tests
 
 ```bash
+# En otra terminal (con ambiente virtual activo)
+# Prerequisito: docker-compose up -d debe estar corriendo (PostgreSQL + AI Mock)
 pytest tests/ -v
 ```
 
-## Migraciones de Base de Datos
+### Opciones Adicionales
 
-El proyecto usa **Alembic** para gestionar migraciones de base de datos.
-
-### Primera vez (requerido)
 ```bash
-# Con Docker (se ejecutan automáticamente al hacer docker compose up)
-docker compose up -d
+# Con cobertura
+pytest --cov=app --cov-report=html tests/ -v
 
-# Manual - EJECUTAR ANTES de uvicorn
+# Modo verbose (salida detallada)
+pytest -vv tests/
+
+# Modo verbose (salida detallada)
+pytest -vv tests/
+
+# Sin reporte de cobertura (más rápido)
+pytest --no-cov tests/
+
+# Ejecutar archivo específico
+pytest tests/test_api.py -v
+
+# Ver reporte HTML de cobertura
+xdg-open htmlcov/index.html  # Linux
+open htmlcov/index.html      # macOS
+start htmlcov/index.html     # Windows
+```
+
+### Usando Docker
+
+```bash
+# Ejecutar todos los tests en contenedor
+docker compose exec api pytest
+
+# Con cobertura
+docker compose exec api pytest --cov=app --cov-report=html
+
+# Tests específicos
+docker compose exec api pytest tests/test_api.py -v
+```
+
+**Configuración de Tests (pytest.ini):**
+- Auto-descubrimiento desde directorio `tests/`
+- Cobertura de código habilitada para módulo `app/`
+- Reportes: terminal + HTML en `htmlcov/`
+- Modo async automático con pytest-asyncio
+
+## Gestión de Base de Datos
+
+### Migraciones (Alembic)
+
+El proyecto usa **Alembic** para control de versiones de la base de datos.
+
+```bash
+# Aplicar migraciones (requerido antes del primer inicio)
 alembic upgrade head
-```
 
-### Crear nueva migración (cuando cambies modelos)
-```bash
+# Crear nueva migración (después de modificar modelos)
 alembic revision --autogenerate -m "Descripción del cambio"
-```
 
-### Ver historial de migraciones
-```bash
+# Ver historial de migraciones
 alembic history
-```
 
-### Revertir última migración
-```bash
+# Revertir última migración
 alembic downgrade -1
+
+# Docker: las migraciones se ejecutan automáticamente
+docker compose up -d
 ```
 
-## Inicialización de Datos de Ejemplo
+### Inicialización de Datos de Ejemplo
 
 Después de ejecutar las migraciones, puedes cargar datos de ejemplo:
 
 ```bash
+# Manual
+python init_db.py
+
 # Con Docker
 docker compose exec api python init_db.py
-
-# Manual (después de alembic upgrade head)
-python init_db.py
 ```
 
-Esto crea:
+**Los datos de ejemplo incluyen:**
 - 5 usuarios de ejemplo
-- 2 ciclos de evaluación
-- 7 competencias estándar
+- 2 ciclos de evaluación (Q1 2026, Q2 2026)
+- 7 competencias estándar (Liderazgo, Comunicación, etc.)
 - Múltiples evaluaciones 360° con detalles
 
 ## Estructura del Proyecto
@@ -105,347 +148,127 @@ Esto crea:
 ```
 career-paths-api/
 ├── app/
-│   ├── main.py                 # Aplicación FastAPI principal
-│   ├── config.py               # Configuración
-│   ├── database.py             # Conexión a DB
-│   ├── models/                 # Modelos SQLAlchemy
-│   │   ├── user.py
+│   ├── main.py                    # Punto de entrada de la aplicación FastAPI
+│   ├── config.py                  # Configuración de la aplicación
+│   ├── database.py                # Conexión y sesión de base de datos
+│   ├── models/                    # Modelos ORM de SQLAlchemy
+│   │   ├── user.py                   # Modelo de usuario
+│   │   ├── evaluation_cycle.py       # Ciclos de evaluación (Q1 2026, etc.)
+│   │   ├── competency.py             # Catálogo de competencias
+│   │   ├── evaluation.py             # Evaluaciones 360°
+│   │   ├── evaluation_detail.py      # Detalles de evaluación por competencia
+│   │   ├── assessment.py             # Evaluación de habilidades generada por IA
+│   │   ├── career_path.py            # Senderos de carrera generados
+│   │   ├── career_path_step.py       # Pasos del sendero de carrera
+│   │   └── development_action.py     # Acciones de desarrollo por paso
+│   ├── schemas/                   # Esquemas Pydantic (request/response)
 │   │   ├── evaluation_cycle.py
 │   │   ├── competency.py
 │   │   ├── evaluation.py
-│   │   ├── evaluation_detail.py
 │   │   ├── assessment.py
 │   │   ├── career_path.py
-│   │   ├── career_path_step.py
-│   │   └── development_action.py
-│   ├── schemas/                # Esquemas Pydantic
-│   │   ├── evaluation_cycle.py
-│   │   ├── competency.py
-│   │   ├── evaluation.py
-│   │   ├── assessment.py
-│   │   └── career_path.py
-│   ├── routers/                # Endpoints API
-│   │   ├── evaluations.py
-│   │   ├── assessments.py
-│   │   └── career_paths.py
+│   │   └── user.py
+│   ├── routers/                   # Manejadores de rutas API
+│   │   ├── evaluations.py            # Endpoints de evaluación 360°
+│   │   ├── assessments.py            # Endpoints de evaluación de habilidades
+│   │   └── career_paths.py           # Endpoints de senderos de carrera
 │   └── services/
-│       └── ai_integration.py
-├── alembic/                    # Migraciones de base de datos
-│   ├── versions/               # Archivos de migración
+│       └── ai_integration.py         # Integración con servicio de IA con lógica de reintentos
+├── alembic/                       # Sistema de migraciones de base de datos
+│   ├── versions/                     # Archivos de migración (control de versiones)
 │   │   └── 001_initial_migration.py
-│   └── env.py                  # Configuración de Alembic
+│   └── env.py                        # Configuración de Alembic
 ├── tests/
-│   └── test_api.py
-├── alembic.ini                 # Configuración de Alembic
-├── ai_mock_service.py
-├── init_db.py
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-└── README.md
+│   ├── conftest.py                # Fixtures y configuración de Pytest
+│   ├── test_api.py                # Tests de endpoints API
+│   └── test_main.py               # Tests de aplicación principal
+├── alembic.ini                    # Configuración de Alembic
+├── pytest.ini                     # Configuración de Pytest
+├── ai_mock_service.py            # Servicio mock de IA para desarrollo
+├── init_db.py                    # Script de inicialización de datos de ejemplo
+├── docker-compose.yml            # Orquestación multi-contenedor
+├── Dockerfile                    # Definición de contenedor API
+├── Dockerfile.ai-mock            # Contenedor de servicio mock de IA
+├── requirements.txt              # Dependencias de Python
+├── ARCHITECTURE.md               # Documento de arquitectura técnica
+├── DECISIONS.md                  # Registro de decisiones de diseño
+└── README.md                     # Este archivo
 ```
 
-## Endpoints Principales
+## API y Endpoints
 
-### Evaluaciones 360°
+La API REST está completamente documentada en:
 
-**POST /api/v1/evaluations**
-Crear evaluación con estructura evaluator/evaluatee
+- **Swagger UI (interactiva):** http://localhost:8000/docs  
+  Probar los endpoints directamente desde el navegador
 
-```json
-{
-  "evaluator_id": "uuid",
-  "evaluatee_id": "uuid",
-  "cycle_id": "uuid",
-  "relationship": "SELF|MANAGER|PEER|DIRECT_REPORT",
-  "answers": [
-    {
-      "competency_id": "uuid",
-      "score": 8,
-      "comments": "Excelente liderazgo en proyecto X"
-    }
-  ]
-}
-```
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)**  
+  Especificación técnica completa de todos los endpoints, request/response schemas y validaciones
 
-Validaciones:
-- `score` debe estar entre 1 y 10
-- `relationship` debe ser uno de: SELF, MANAGER, PEER, DIRECT_REPORT
-- Para SELF: `evaluator_id` debe ser igual a `evaluatee_id`
-- Constraint único: (evaluator_id, evaluatee_id, cycle_id)
+### Endpoints Principales
 
-Respuesta 201 Created:
-```json
-{
-  "id": "uuid",
-  "evaluator_id": "uuid",
-  "evaluatee_id": "uuid",
-  "cycle_id": "uuid",
-  "relationship": "PEER",
-  "status": "COMPLETED",
-  "submitted_at": "2026-01-21T...",
-  "details": [
-    {
-      "competency_name": "Liderazgo",
-      "score": 8,
-      "comments": "..."
-    }
-  ]
-}
-```
-
-**POST /api/v1/evaluations/{evaluation_id}/process**
-Procesar evaluación manualmente con IA (normalmente es automático)
-
-### Evaluación de Habilidades con IA
-
-**GET /api/v1/skills-assessments/{user_id}**
-Obtener assessment más reciente del usuario
-
-**Respuesta 200:**
-```json
-{
-  "user_id": "uuid",
-  "cycle_id": "uuid",
-  "processing_status": "COMPLETED",
-  "ai_profile": {
-    "strengths": ["Liderazgo", "Comunicación"],
-    "growth_areas": ["Pensamiento Estratégico"],
-    "hidden_talents": ["Innovación"],
-    "readiness_for_roles": [
-      {
-        "role_name": "Gerente Regional",
-        "readiness_percentage": 75,
-        "reasoning": "Fortalezas en liderazgo..."
-      }
-    ]
-  },
-  "created_at": "2026-01-21T..."
-}
-```
-
-Respuesta 404: Usuario no encontrado o sin assessments
-
-### Senderos de Carrera
-
-**GET /api/v1/career-paths/{user_id}**
-Obtener senderos generados para un usuario
-
-**Respuesta 200:**
-```json
-{
-  "career_path_id": "uuid",
-  "user_id": "uuid",
-  "generated_paths": [
-    {
-      "path_id": "uuid",
-      "path_name": "Ruta de Liderazgo Ejecutivo",
-      "recommended": true,
-      "total_duration_months": 18,
-      "feasibility_score": 0.75,
-      "status": "GENERATED"
-    }
-  ],
-  "timestamp": "2026-01-21T..."
-}
-```
-
-Respuesta 202 Accepted: Generación iniciada en background
-Respuesta 404 Not Found: Usuario no encontrado o sin assessment completado
-
-**GET /api/v1/career-paths/{path_id}/steps**
-Obtener pasos detallados de un sendero
-
-**Respuesta 200:**
-```json
-{
-  "path_id": "uuid",
-  "path_name": "Ruta de Liderazgo Ejecutivo",
-  "steps": [
-    {
-      "step_number": 1,
-      "target_role": "Team Leader",
-      "duration_months": 6,
-      "required_competencies": ["Liderazgo", "Comunicación"]
-    }
-  ]
-}
-```
-
-**POST /api/v1/career-paths/{path_id}/accept**
-Aceptar un sendero de carrera
-
-**Respuesta 200:**
-```json
-{
-  "path_id": "uuid",
-  "user_id": "uuid",
-  "status": "IN_PROGRESS",
-  "started_at": "2026-01-21T..."
-}
-```
-
-Respuesta 409 Conflict: El sendero ya está en progreso
+- `POST /api/v1/evaluations` - Crear evaluación 360°
+- `GET /api/v1/skills-assessments/{user_id}` - Obtener perfil de habilidades
+- `GET /api/v1/career-paths/{user_id}` - Obtener senderos de carrera
+- `POST /api/v1/career-paths/{path_id}/accept` - Aceptar un sendero
 
 ## Flujo Completo
 
-1. **Crear ciclo de evaluación** (via admin o DB)
+1. **Crear ciclo de evaluación** (vía admin o base de datos)
 2. **Crear evaluaciones 360°:**
    - Auto-evaluación (SELF)
-   - Evaluación de manager (MANAGER)
-   - Evaluación de peer(s) (PEER)
-3. **Detección automática:** Al completar SELF + MANAGER + PEER, se dispara procesamiento de IA
-4. **Assessment generado:** IA analiza evaluaciones y crea perfil de habilidades
-5. **Career paths:** Al consultar `/career-paths/{user_id}`, se generan senderos personalizados
-6. **Aceptar path:** Usuario selecciona sendero con `/accept`
+   - Evaluación del manager (MANAGER)
+   - Evaluación(es) de pares (PEER)
+3. **Detección automática:** Cuando SELF + MANAGER + PEER están completas, se activa el procesamiento de IA
+4. **Evaluación generada:** La IA analiza las evaluaciones y crea el perfil de habilidades
+5. **Senderos de carrera:** Al consultar `/career-paths/{user_id}`, se generan senderos personalizados
+6. **Aceptar sendero:** El usuario selecciona un sendero de carrera con `/accept`
 
-## Testing
+**Probar la API:** Visita http://localhost:8000/docs para interactuar con todos los endpoints
 
-```bash
-# Ejecutar todos los tests
-docker compose exec api pytest
+## Configuración
 
-# Con coverage
-docker compose exec api pytest --cov=app --cov-report=html
-
-# Tests específicos
-docker compose exec api pytest tests/test_api.py -v
-
-# Ver reporte de coverage (HTML)
-xdg-open htmlcov/index.html  # Linux
-open htmlcov/index.html      # macOS
-start htmlcov/index.html     # Windows
-```
-
-## Ejemplos de Uso
-
-### Crear evaluación 360°
-```bash
-curl -X POST "http://localhost:8000/api/v1/evaluations" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "evaluatee_id": "uuid-user-1",
-    "evaluator_id": "uuid-user-2",
-    "cycle_id": "uuid-cycle-1",
-    "evaluator_relationship": "PEER",
-    "answers": [
-      {"competency_id": "uuid-comp-1", "score": 8, "comments": "Excelente"}
-    ]
-  }'
-```
-
-### Obtener assessment de habilidades
-```bash
-curl "http://localhost:8000/api/v1/skills-assessments/uuid-user-1"
-```
-
-### Obtener senderos de carrera
-```bash
-curl "http://localhost:8000/api/v1/career-paths/uuid-user-1"
-```
-
-## Arquitectura Técnica
-
-```bash
-# Ejecutar todos los tests
-pytest
-
-# Con cobertura
-pytest --cov=app --cov-report=html
-
-# Tests de la API
-pytest tests/test_api.py -v
-
-# Ver output detallado
-pytest -v -s
-```
-
-## Variables de Entorno
+### Variables de Entorno
 
 Ver `.env.example` para todas las configuraciones disponibles.
 
-Principales variables:
-- `DATABASE_URL`: URL de conexión a PostgreSQL
+**Variables principales:**
+- `DATABASE_URL`: Cadena de conexión a PostgreSQL
 - `AI_SERVICE_BASE_URL`: URL del servicio de IA (http://localhost:8001 en desarrollo)
 - `SECRET_KEY`: Clave secreta para JWT (si se implementa autenticación)
 - `DEBUG`: Modo debug (True/False)
 
-## Documentación Adicional
+## Arquitectura
 
-- [ARCHITECTURE.md](../../ARCHITECTURE.md) - Documento de arquitectura que guía esta implementación
-- [IMPLEMENTATION.md](./IMPLEMENTATION.md) - Resumen de la implementación
-- Documentación interactiva: http://localhost:8000/docs
-- Redoc: http://localhost:8000/redoc
-- Mock AI Service: http://localhost:8001/docs
+Esta implementación sigue la arquitectura definida en ARCHITECTURE.md:
 
-## Arquitectura Implementada
-
-Esta implementación sigue fielmente la arquitectura definida en el documento ARCHITECTURE.md:
-
-- Separación evaluator/evaluatee en evaluaciones
-- Ciclos de evaluación (Q1 2026, Q2 2026, etc)
+**Decisiones arquitectónicas clave:**
+- Separación evaluador/evaluado en evaluaciones
+- Ciclos de evaluación (Q1 2026, Q2 2026, etc.)
 - Catálogo de competencias normalizado
 - Evaluación 360° con detalles por competencia
 - Detección automática de ciclo completo (SELF + MANAGER + PEER)
-- Procesamiento de IA con retry logic (tenacity)
-- Career paths como entidades relacionales (Path → Steps → Actions)
-- Constraints únicos: (evaluator, evaluatee, cycle), (user, cycle) para assessments
-- Validaciones: scores 1-10, relationship types, SELF evaluation rules
+- Procesamiento de IA con lógica de reintentos (librería tenacity)
+- Senderos de carrera como entidades relacionales (Path → Steps → Actions)
+- Restricciones únicas: (evaluator, evaluatee, cycle), (user, cycle) para evaluaciones
+- Validaciones: puntajes 1-10, tipos de relación, reglas de evaluación SELF
 
-Para más detalles, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y [DECISIONS.md](./DECISIONS.md).
+**Para documentación técnica detallada:**
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura completa del sistema
+- [DECISIONS.md](./DECISIONS.md) - Decisiones de diseño y justificaciones
 
-## Deployment técnicos, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y [DECISIONS.md](./DECISIONS
+### Stack Tecnológico
 
-```bash
-# Construir imagen
-docker compose build
+- **FastAPI 0.109.0** - Framework web moderno de Python
+- **SQLAlchemy 2.0.25** - ORM para operaciones de base de datos
+- **Alembic 1.13.1** - Herramienta de migración de base de datos
+- **PostgreSQL 15** - Base de datos relacional
+- **Pydantic v2** - Validación de datos con type hints
+- **Pytest 7.4.4** - Framework de testing
+- **Tenacity 8.2.3** - Lógica de reintentos para llamadas al servicio de IA
+- **Uvicorn 0.25.0** - Servidor ASGI
 
-# Iniciar servicios
-docker compose up -d
+### Documentación Interactiva
 
-# Ver logs
-docker compose logs -f api
-
-# Ejecutar migraciones en contenedor
-docker compose exec api alembic upgrade head
-
-# Inicializar datos
-docker compose exec api python init_db.py
-
-# Detener servicios
-docker compose down
-
-# Limpiar volúmenes
-docker compose down -v
-```
-
-## Desarrollo
-
-### Iniciar servicios manualmente
-
-```bash
-# Terminal 1 - Base de datos
-docker compose up -d postgres
-
-# Terminal 2 - Servicio de IA Mock
-python -m uvicorn ai_mock_service:app --host 0.0.0.0 --port 8001
-
-# Terminal 3 - API principal
-uvicorn app.main:app --reload --port 8000
-```
-
-### Migraciones
-
-```bash
-# Crear nueva migración
-alembic revision --autogenerate -m "descripción del cambio"
-
-# Aplicar migraciones
-alembic upgrade head
-
-# Revertir migración
-alembic downgrade -1
-
-# Inicializar datos de ejemplo
-python init_db.py
-```
+- **Swagger UI:** http://localhost:8000/docs - Para pruebas interactivas de API
+- **Servicio Mock de IA:** http://localhost:8001/docs - Endpoints del servicio mock de IA

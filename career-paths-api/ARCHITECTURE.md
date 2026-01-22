@@ -34,6 +34,7 @@ graph TD
     
     subgraph External ["Sistemas Externos"]
         BlackBoxAI[Sistema IA Sendos]
+        AIModulo[AI Mock Service - Simulación]
         Provider[Proveedor Email/Push]
     end
 
@@ -48,6 +49,7 @@ graph TD
     %% Flujo Asíncrono de IA
     Service -- "1. Encolar Tarea (Async)" --> BgTask
     BgTask <--> BlackBoxAI
+    BgTask <-. "Desarrollo/Testing" .-> AIModulo
     BgTask -. "2. Actualizar Resultado" .-> Model
     
     %% Flujo de Notificación
@@ -63,7 +65,181 @@ graph TD
     class BlackBoxAI,Provider ext;
 ```
 
-## 1.2 Especificación de Endpoints
+## 1.2 Convenciones de Código y Estándares
+
+El proyecto sigue convenciones estrictas para garantizar consistencia, mantenibilidad y calidad del código:
+
+### 1.2.1 Convenciones de Nomenclatura
+
+**Campos de Base de Datos y Modelos:**
+- **snake_case** para todos los nombres de columnas y atributos
+  - Ejemplos: `user_id`, `created_at`, `evaluator_relationship`, `ai_profile`
+- **PascalCase** para nombres de clases
+  - Ejemplos: `User`, `Evaluation`, `CareerPath`, `SkillsAssessment`
+- **Nombres descriptivos** que reflejen el dominio de negocio
+  - Preferir: `employee_id` sobre `emp_id`
+  - Preferir: `evaluator_relationship` sobre `rel_type`
+
+**Identificadores Únicos:**
+- **UUID v4** para todos los IDs de entidades
+  - Tipo: `UUID(as_uuid=True)` en SQLAlchemy
+  - Generación: `default=uuid.uuid4`
+  - Beneficios: Universalmente únicos, sin colisiones en sistemas distribuidos
+  - Ejemplo: `id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)`
+
+**Relaciones y Foreign Keys:**
+- Sufijo `_id` para foreign keys
+  - Ejemplos: `user_id`, `cycle_id`, `evaluation_id`, `career_path_id`
+- Nombres plurales para relaciones one-to-many
+  - Ejemplo: `evaluations_given`, `evaluations_received`, `assessments`
+
+### 1.2.2 Convenciones de Formato de Datos
+
+**Timestamps:**
+- **Formato ISO 8601** en responses JSON
+  - Formato: `YYYY-MM-DDTHH:MM:SSZ`
+  - Ejemplo: `"2026-01-20T10:30:00Z"`
+- **UTC timezone** por defecto
+  - Uso: `datetime.utcnow()` en modelos SQLAlchemy
+  - Campos estándar: `created_at`, `updated_at`, `processing_started_at`, `processing_completed_at`
+
+**Puntajes y Scores:**
+- Rango **1-10** (enteros) para evaluaciones de competencias
+  - Validación: `Field(..., ge=1, le=10)` en Pydantic
+- Rango **0.0-1.0** (float) para scores de viabilidad
+  - Ejemplo: `feasibility_score: 0.85` (85% de viabilidad)
+
+**Enumeraciones:**
+- **UPPER_CASE** para valores de enums
+  - Relaciones: `SELF`, `MANAGER`, `PEER`, `DIRECT_REPORT`
+  - Estados: `ACTIVE`, `CLOSED`, `ARCHIVED`, `SUBMITTED`, `COMPLETED`, `PROCESSING`
+  - Tipos: `COURSE`, `MENTORSHIP`, `PROJECT`, `CERTIFICATION`
+
+### 1.2.3 Convenciones de API
+
+**Endpoints:**
+- **RESTful naming** con sustantivos en plural
+  - Ejemplos: `/api/v1/evaluations`, `/api/v1/assessments`, `/api/v1/career-paths`
+- **kebab-case** para URLs con múltiples palabras
+  - Ejemplo: `/api/v1/career-paths` (no `careerPaths` ni `career_paths`)
+- **Versionado explícito** en el path
+  - Formato: `/api/v1/...`
+
+**Request/Response Bodies:**
+- **snake_case** para claves JSON
+  - Ejemplo: `{"employee_id": "...", "evaluator_relationship": "MANAGER"}`
+- **Pydantic ConfigDict** con `populate_by_name=True` para compatibilidad
+  - Permite tanto snake_case como camelCase si es necesario
+
+**Códigos de Estado HTTP:**
+- **200 OK**: Consulta exitosa
+- **201 Created**: Recurso creado exitosamente
+- **202 Accepted**: Procesamiento asíncrono iniciado
+- **400 Bad Request**: Error de validación de datos
+- **404 Not Found**: Recurso no encontrado
+- **409 Conflict**: Violación de constraint (ej: evaluación duplicada)
+- **422 Unprocessable Entity**: Error de validación de Pydantic
+- **500 Internal Server Error**: Error no controlado del servidor
+
+### 1.2.4 Convenciones de Código Python
+
+**Estilo de Código:**
+- **PEP 8** para todo el código Python
+  - Líneas máximo 120 caracteres (configurado en formatters)
+  - Imports ordenados: standard library → third-party → local
+  - 2 líneas en blanco entre clases top-level
+  - 1 línea en blanco entre métodos
+
+**Type Hints:**
+- **Type hints obligatorios** en funciones públicas
+  - Ejemplo: `def create_evaluation(data: EvaluationCreate) -> EvaluationResponse:`
+- **Optional** explícito para valores opcionales
+  - Ejemplo: `general_feedback: Optional[str] = None`
+
+**Docstrings:**
+- **Docstrings en inglés** para módulos, clases y funciones públicas
+  - Formato: Google style docstrings
+  - Ejemplo:
+    ```python
+    """
+    Create a new 360° evaluation.
+    
+    Args:
+        evaluation: The evaluation data to create.
+        db: Database session dependency.
+    
+    Returns:
+        The created evaluation with assigned ID.
+    
+    Raises:
+        HTTPException: If validation fails or resources not found.
+    """
+    ```
+
+**Imports:**
+- **Imports absolutos** preferidos sobre relativos
+  - Preferir: `from app.models.user import User`
+  - Evitar: `from ..models.user import User`
+- **Agrupación de imports**:
+  1. Standard library
+  2. Third-party packages (FastAPI, SQLAlchemy, Pydantic)
+  3. Local application imports
+
+### 1.2.5 Convenciones de Base de Datos
+
+**Nombres de Tablas:**
+- **snake_case** en plural
+  - Ejemplos: `users`, `evaluations`, `evaluation_details`, `career_paths`, `career_path_steps`
+
+**Índices:**
+- Foreign keys indexadas automáticamente
+- Campos de búsqueda frecuente indexados
+  - Ejemplo: `email` en `users` table
+  - Ejemplo: `(user_id, cycle_id)` composite index en `assessments`
+
+**Constraints:**
+- **Nombres descriptivos** para constraints
+  - Unique: `uq_evaluations_evaluator_employee_cycle`
+  - Foreign Key: `fk_evaluations_user_evaluator`
+  - Check: `ck_evaluation_details_score_range`
+
+**JSONB Fields:**
+- **Estructura documentada** en comentarios o docstrings
+- **Validación en capa de aplicación** con Pydantic
+- **Claves en snake_case** dentro del JSON
+  - Ejemplo: `{"strengths": [...], "growth_areas": [...], "hidden_talents": [...]}`
+
+### 1.2.6 Convenciones de Testing
+
+**Nombres de Archivos:**
+- Prefijo `test_` para archivos de test
+  - Ejemplos: `test_api.py`, `test_main.py`, `conftest.py`
+
+**Nombres de Funciones:**
+- Prefijo `test_` para funciones de test
+  - Formato descriptivo: `test_<action>_<scenario>_<expected_result>`
+  - Ejemplos: `test_create_evaluation_invalid_score`, `test_duplicate_evaluation`
+
+**Estructura de Tests:**
+- **Patrón AAA** (Arrange-Act-Assert) con comentarios explícitos
+  ```python
+  def test_example():
+      # Arrange
+      user = create_user()
+      
+      # Act
+      result = function_under_test(user)
+      
+      # Assert
+      assert result.status == "success"
+  ```
+
+**Fixtures:**
+- Fixtures reutilizables en `conftest.py`
+- Nombres descriptivos: `sample_users`, `sample_cycle`, `sample_competencies`
+- Scope apropiado: `function`, `session`, etc.
+
+## 1.3 Especificación de Endpoints
 
 ### 1.2.1 Crear evaluación 360°
 #### POST /api/v1/evaluations
@@ -215,6 +391,12 @@ Response 409:
 ```json
 {
   "detail": "The evaluation is already being processed."
+}
+```
+**Nota:** También retorna 409 si el assessment ya fue completado:
+```json
+{
+  "detail": "The evaluation has already been processed. Assessment already exists."
 }
 ```
 Response 422: 
@@ -502,7 +684,7 @@ Response 422:
   ]
 }
 ```
-### 1.2.8 (Adicional) Obtener la lista de evaluaciones del usuario
+### 1.2.8 (Adicional) Obtener la lista de evaluaciones
 #### GET /api/v1/evaluations
 Response 200:
 ```json
@@ -530,7 +712,7 @@ Response 401:
 }
 ```
 
-## 1.3 Diseño de Modelo de Datos
+## 1.4 Diseño de Modelo de Datos
 ```mermaid
 erDiagram
     %% --- BLOQUE 1: ACTORES Y TIEMPO ---
@@ -657,14 +839,14 @@ erDiagram
 
 ### Constraints y validaciones
 
-#### 1.3.1 Unicidad de Competencias
+#### 1.4.1 Unicidad de Competencias
 Regla: No pueden existir dos competencias con el mismo nombre.
 Sea C el conjunto de todas las Competencias.
 
 ∀ c1, c2 ∈ C : c1.name = c2.name ⟹ c1 = c2
 
 
-#### 1.3.2 Unicidad de Evaluaciones
+#### 1.4.2 Unicidad de Evaluaciones
 Regla: No pueden existir dos evaluaciones distintas para el mismo par (Evaluador, Empleado) dentro del mismo Ciclo.
 Sea E el conjunto de todas las Evaluaciones.
 Sea e.evaluator, e.employee, e.cycle los atributos de una evaluación e.
@@ -675,7 +857,7 @@ Sea e.evaluator, e.employee, e.cycle los atributos de una evaluación e.
      e1.cycle = e2.cycle)
     ⟹ e1 = e2`
 
-#### 1.3.3 Unicidad de Assessments
+#### 1.4.3 Unicidad de Assessments
 Regla: Un usuario solo puede tener un assessment por ciclo de evaluación.
 Sea A el conjunto de todos los Skills Assessments.
 
@@ -684,21 +866,21 @@ Sea A el conjunto de todos los Skills Assessments.
      a1.cycle_id = a2.cycle_id)
     ⟹ a1 = a2
 
-#### 1.3.4 Validez de Puntajes
+#### 1.4.4 Validez de Puntajes
 Regla: Todo puntaje asignado en un detalle de evaluación debe estar dentro del rango [1, 10].
 Sea D el conjunto de todos los Detalles de Evaluación (EvaluationDetails).
 Sea d.score el puntaje asignado.
 
 ∀ d ∈ D : (d.score ≥ 1 ∧ d.score ≤ 10)
 
-#### 1.3.5 Coherencia Temporal de Ciclos
+#### 1.4.5 Coherencia Temporal de Ciclos
 Regla: Un ciclo no puede terminar antes de empezar.
 Sea C el conjunto de Ciclos de Evaluación.
 
 ∀ c ∈ C : c.end_date IS NULL OR c.start_date < c.end_date
 
-## 1.4 Flujo de Procesamiento Completo
-### 1.4.1 Flujo 1: Procesamiento de Evaluación 360°
+## 1.5 Flujo de Procesamiento Completo
+### 1.5.1 Flujo 1: Procesamiento de Evaluación 360°
 1. Un usuario completa todas sus evaluaciones 360° (self, peers, manager, direct reports)
 2. El sistema detecta que el ciclo está completo
 3. Se dispara el procesamiento automático con IA
@@ -752,7 +934,7 @@ El flujo comienza automáticamente en cuanto el sistema valida que se han comple
 
 Luego, el sistema toma las calificaciones numéricas "crudas" y las procesa a través de dos capas de inteligencia artificial: la primera transforma esos datos en un perfil cualitativo de fortalezas y debilidades en formato JSONB, y la segunda utiliza ese perfil junto con la jerarquía organizacional para proponer planes de carrera.
 
-### 1.4.2 Flujo 2: Consulta de Senderos de Carrera
+### 1.5.2 Flujo 2: Consulta de Senderos de Carrera
 1. Un usuario consulta sus senderos disponibles
 2. El sistema retorna los senderos con su estado actual
 3. El usuario puede ver detalles de un sendero específico
@@ -919,7 +1101,38 @@ Eres el Ingeniero de Backend Senior de Sendos, una plataforma de gestión de rec
 7. Observabilidad:
    - Usa `logging` para registrar: Inicio del proceso (INFO), Intentos fallidos (WARNING) y Éxito final con el ID del usuario (INFO).
 
-## 1.6 Patrones de Diseño Aplicados
+## 1.6 Servicio de Mock para Simulaciones
+
+**Arquitectura del Mock:**
+- **Servicio independiente**: FastAPI corriendo en puerto 8001
+- **Containerizado**: Incluido en `docker-compose.yml` como servicio `ai-mock`
+- **Endpoints simulados**:
+  - `POST /api/v1/ai/assess-skills`: Simula análisis de habilidades con IA
+  - `POST /api/v1/ai/generate-career-paths`: Simula generación de rutas de carrera
+- **Latencia realista**: Incluye delays (2-5 segundos) para simular procesamiento real
+- **Responses estructuradas**: Retorna JSONs con estructura idéntica al servicio real
+
+**Beneficios:**
+- Desarrollo sin dependencias externas
+- Testing reproducible (no depende de servicios externos)
+- Demostración realista del flujo completo
+- Simulación de latencias de red y procesamiento
+
+**Limitaciones (ver DECISIONS.md sección 11):**
+- Procesamiento asíncrono complica testing de integración
+- BackgroundTasks no se ejecutan en TestClient síncrono
+
+**Uso:**
+```bash
+# Con Docker Compose (recomendado)
+docker compose up -d
+
+# Verificar servicio
+curl http://localhost:8001/
+# Response: {"service":"AI Mock Service","status":"running","version":"2.0"}
+```
+
+## 1.7 Patrones de Diseño Aplicados
 
 ### Repository Pattern (Implícito)
 Los modelos SQLAlchemy actúan como repositorios, encapsulando acceso a datos.
@@ -936,7 +1149,7 @@ FastAPI `Depends()` inyecta dependencias (DB session, settings, etc.).
 ### Factory Pattern
 Funciones helper para crear objetos de prueba en tests.
 
-## 1.7 Consideraciones de Producción
+## 1.8 Consideraciones de Producción
 
 ### Pendientes para Producción
 
@@ -985,7 +1198,7 @@ Funciones helper para crear objetos de prueba en tests.
 - [ ] Infrastructure as Code (Terraform)
 - [ ] Secrets management (Vault, AWS Secrets Manager)
 
-## 1.8 Conclusión de Diseño
+## 1.9 Conclusión de Diseño
 
 La arquitectura implementada prioriza:
 
