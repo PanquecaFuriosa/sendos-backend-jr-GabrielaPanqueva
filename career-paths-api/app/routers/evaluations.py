@@ -1,6 +1,6 @@
 """
-Router para operaciones de evaluaciones 360°.
-Según arquitectura definida en ARCHITECTURE.md
+Router for 360° evaluation operations.
+According to architecture defined in ARCHITECTURE.md
 """
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -24,12 +24,12 @@ router = APIRouter(
 
 async def check_cycle_completion_and_trigger_ai(employee_id: UUID, cycle_id: UUID, db: Session):
     """
-    Verifica si se completaron todas las evaluaciones del ciclo para un usuario.
-    Si está completo, dispara el procesamiento de IA.
+    Checks if all cycle evaluations are completed for a user.
+    If complete, triggers AI processing.
     """
     from app.routers.assessments import trigger_ai_processing
     
-    # Contar evaluaciones requeridas y completadas
+    # Count required and completed evaluations
     required_types = [
         EvaluatorRelationship.SELF,
         EvaluatorRelationship.MANAGER,
@@ -71,16 +71,16 @@ async def create_evaluation(
     db: Session = Depends(get_db)
 ):
     """
-    Crea una nueva evaluación 360°.
+    Creates a new 360° evaluation.
     
-    - **evaluator_id**: ID del usuario que evalúa
-    - **employee_id**: ID del usuario evaluado
-    - **cycle_id**: ID del ciclo de evaluación
-    - **evaluator_relationship**: Tipo de relación (SELF, MANAGER, PEER, DIRECT_REPORT)
-    - **answers**: Lista de respuestas por competencia con scores (1-10)
-    - **general_feedback**: Comentario general (opcional)
+    - **evaluator_id**: ID of the user performing the evaluation
+    - **employee_id**: ID of the user being evaluated
+    - **cycle_id**: ID of the evaluation cycle
+    - **evaluator_relationship**: Relationship type (SELF, MANAGER, PEER, DIRECT_REPORT)
+    - **answers**: List of answers per competency with scores (1-10)
+    - **general_feedback**: General comments (optional)
     
-    Si se completa el ciclo (SELF + MANAGER + PEER), dispara procesamiento de IA automáticamente.
+    If the cycle is completed (SELF + MANAGER + PEER), triggers AI processing automatically.
     """
     # Verify the cycle exists
     cycle = db.query(EvaluationCycle).filter(EvaluationCycle.id == evaluation.cycle_id).first()
@@ -180,6 +180,7 @@ async def create_evaluation(
             response_model=EvaluationFullResponse,
             summary="Get evaluation by ID",
             responses={
+                403: {"description": "You do not have permission to view this career plan."},
                 404: {"description": "Evaluation not found"},
                 422: {"description": "Invalid UUID"}
             })
@@ -188,9 +189,9 @@ async def get_evaluation(
     db: Session = Depends(get_db)
 ):
     """
-    Obtiene una evaluación por su ID con todos sus detalles.
+    Gets an evaluation by its ID with all its details.
     
-    - **evaluation_id**: ID de la evaluación a consultar
+    - **evaluation_id**: ID of the evaluation to query
     """
     evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
     
@@ -211,6 +212,7 @@ async def get_evaluation(
     
     # Build response according to architecture spec
     response = EvaluationFullResponse(
+        id=evaluation.id,
         employee_id=evaluation.employee_id,
         evaluator_id=evaluation.evaluator_id,
         cycle_id=evaluation.cycle_id,
@@ -218,6 +220,7 @@ async def get_evaluation(
         answers=answers_response,
         general_feedback=evaluation.general_feedback,
         status=evaluation.status.value,
+        created_at=evaluation.created_at,
         updated_at=evaluation.updated_at
     )
     
@@ -245,6 +248,7 @@ async def list_evaluations(
              summary="Trigger AI processing for an evaluation",
              responses={
                  202: {"description": "Processing started"},
+                 403: {"description": "You do not have permission to modify this evaluation."},
                  404: {"description": "Evaluation not found"},
                  409: {"description": "The evaluation is already being processed"},
                  422: {"description": "Invalid UUID"}
@@ -254,12 +258,12 @@ async def process_evaluation(
     db: Session = Depends(get_db)
 ):
     """
-    Dispara el procesamiento de IA manualmente para una evaluación.
-    Normalmente esto se hace automáticamente cuando se completa el ciclo.
+    Triggers AI processing manually for an evaluation.
+    Normally this is done automatically when the cycle is completed.
     
-    - **evaluation_id**: ID de la evaluación a procesar
+    - **evaluation_id**: ID of the evaluation to process
     
-    Retorna 202 Accepted según la especificación de la arquitectura.
+    Returns 202 Accepted according to architecture specification.
     """
     evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
     
@@ -285,7 +289,7 @@ async def process_evaluation(
             detail="The evaluation is already being processed."
         )
     
-    # Procesar directamente (sin background task para evitar problemas con la sesión)
+    # Process directly (without background task to avoid session issues)
     from app.routers.assessments import trigger_ai_processing
     
     try:

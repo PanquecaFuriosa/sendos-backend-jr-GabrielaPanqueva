@@ -1,5 +1,5 @@
 """
-Modelo de Acción de Desarrollo.
+Development Action Model.
 """
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,8 +11,8 @@ from app.database import Base
 
 class DevelopmentAction(Base):
     """
-    Modelo de Acción de Desarrollo (weak entity).
-    Representa una acción específica de desarrollo dentro de un paso.
+    Development Action Model (weak entity).
+    Represents a specific development action within a step.
     """
     __tablename__ = "development_actions"
     
@@ -27,7 +27,7 @@ class DevelopmentAction(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relaciones
+    # Relationships
     step = relationship("CareerPathStep", back_populates="development_actions")
     
     def __repr__(self):

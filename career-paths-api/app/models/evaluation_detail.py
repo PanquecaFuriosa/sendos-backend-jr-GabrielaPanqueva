@@ -1,5 +1,5 @@
 """
-Modelo de Detalle de Evaluación.
+Evaluation Detail Model.
 """
 from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,8 +11,8 @@ from app.database import Base
 
 class EvaluationDetail(Base):
     """
-    Modelo de Detalle de Evaluación.
-    Almacena el puntaje y comentarios para cada competencia en una evaluación.
+    Evaluation Detail Model.
+    Stores the score and comments for each competency in an evaluation.
     """
     __tablename__ = "evaluation_details"
     
@@ -21,23 +21,23 @@ class EvaluationDetail(Base):
     # Relationship with evaluation (weak entity)
     evaluation_id = Column(UUID(as_uuid=True), ForeignKey("evaluations.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    # Competencia evaluada
+    # Assessed competency
     competency_id = Column(UUID(as_uuid=True), ForeignKey("competencies.id"), nullable=False, index=True)
     
-    # Puntaje (1-10)
+    # Score (1-10)
     score = Column(Integer, nullable=False)
     
-    # Comentarios opcionales
+    # Optional comments
     comments = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Constraint: score debe estar entre 1 y 10
+    # Constraint: score must be between 1 and 10
     __table_args__ = (
         CheckConstraint('score >= 1 AND score <= 10', name='check_score_range'),
     )
     
-    # Relaciones
+    # Relationships
     evaluation = relationship("Evaluation", back_populates="details")
     competency = relationship("Competency", back_populates="evaluation_details")
     

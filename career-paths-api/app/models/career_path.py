@@ -1,5 +1,5 @@
 """
-Modelo de Career Path (Sendero de Carrera).
+Career Path Model.
 """
 from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Boolean, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,7 +11,7 @@ from app.database import Base
 
 
 class CareerPathStatus(str, enum.Enum):
-    """Estados de un sendero de carrera."""
+    """Career path statuses."""
     GENERATED = "GENERATED"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
@@ -29,7 +29,7 @@ class CareerPath(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
     # Path information
-    path_name = Column(String, nullable=False)  # "Ruta de Liderazgo Regional"
+    path_name = Column(String, nullable=False)  # "Regional Leadership Path"
     recommended = Column(Boolean, default=False)  # If it's the recommended path
     total_duration_months = Column(Float, nullable=False)
     feasibility_score = Column(Float, nullable=True)  # 0.0 - 1.0
@@ -39,12 +39,12 @@ class CareerPath(Base):
     
     # Timestamps
     generated_at = Column(DateTime, default=datetime.utcnow)
-    started_at = Column(DateTime, nullable=True)  # Cuando el usuario lo acepta
+    started_at = Column(DateTime, nullable=True)  # When user accepts it
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones
+    # Relationships
     user = relationship("User", back_populates="career_paths")
     steps = relationship("CareerPathStep", back_populates="career_path", cascade="all, delete-orphan", order_by="CareerPathStep.step_order")
     

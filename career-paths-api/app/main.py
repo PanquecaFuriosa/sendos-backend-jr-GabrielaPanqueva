@@ -52,7 +52,7 @@ app.include_router(
 
 @app.get("/")
 async def root():
-    """Endpoint raíz con información básica de la API."""
+    """Root endpoint with basic API information."""
     return {
         "message": "Career Paths API - Sendos",
         "version": "1.0.0",

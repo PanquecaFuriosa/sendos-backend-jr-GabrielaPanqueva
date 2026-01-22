@@ -94,8 +94,12 @@ Response 201:
 {
   "id": "uuid-new-eval-1",
   "employee_id": "uuid-user-1",
+  "evaluator_id": "uuid-user-2",
+  "cycle_id": "uuid-cycle-2026-q1",
+  "evaluator_relationship": "PEER",
   "status": "SUBMITTED",
-  "created_at": "2026-01-20T10:30:00Z"
+  "created_at": "2026-01-20T10:30:00Z",
+  "updated_at": "2026-01-20T10:30:00Z"
 }
 ```
 Response 400: 
@@ -134,6 +138,7 @@ Response 422:
 Response 200:
 ```json
 {
+  "id": "uuid-eval-123",
   "employee_id": "uuid-user-1", 
   "evaluator_id": "uuid-user-2",
   "cycle_id": "uuid-cycle-2026-q1",
@@ -150,8 +155,9 @@ Response 200:
       "comments": "Buena oratoria, falta escucha activa."
     }
   ],
-  "general_feedback": "En general, es un excelente compañero de equipo."
-  "status": "COMPLETED"
+  "general_feedback": "En general, es un excelente compañero de equipo.",
+  "status": "COMPLETED",
+  "created_at": "2026-01-20T10:30:00Z",
   "updated_at": "2026-01-20T10:35:00Z"
 }
 ```
@@ -231,7 +237,8 @@ Response 200:
 {
   "assessment_id": "uuid-assessment-001",
   "user_id": "uuid-user-1",
-  "skills_profile": {
+  "cycle_id": "uuid-cycle-2026-q1",
+  "ai_profile": {
     "strengths": [
       {
         "skill": "Comunicación",
@@ -268,20 +275,21 @@ Response 200:
         "evidence": "Identificado a través de análisis de feedback cualitativo",
         "potential_score": 8.5
       }
+    ],
+    "readiness_for_roles": [
+      {
+        "role": "Gerente Regional",
+        "readiness_percentage": 65,
+        "missing_competencies": ["Pensamiento Estratégico", "Gestión de P&L"]
+      },
+      {
+        "role": "Gerente de Capacitación",
+        "readiness_percentage": 78,
+        "missing_competencies": ["Diseño Instruccional"]
+      }
     ]
   },
-  "readiness_for_roles": [
-    {
-      "role": "Gerente Regional",
-      "readiness_percentage": 65,
-      "missing_competencies": ["Pensamiento Estratégico", "Gestión de P&L"]
-    },
-    {
-      "role": "Gerente de Capacitación",
-      "readiness_percentage": 78,
-      "missing_competencies": ["Diseño Instruccional"]
-    }
-  ],
+  "processing_status": "COMPLETED",
   "timestamp": "2025-01-15T10:30:00Z"
 }
 ```
@@ -329,14 +337,18 @@ Response 200:
       "path_name": "Ruta de Liderazgo Regional",
       "recommended": true,
       "total_duration_months": 24,
-      "feasibility_score": 0.85
+      "feasibility_score": 0.85,
+      "status": "GENERATED",
+      "generated_at": "2025-01-15T10:35:00Z"
     },
     {
       "path_id": "uuid-path-02",
       "path_name": "Ruta de Especialización en Operaciones",
       "recommended": false,
       "total_duration_months": 18,
-      "feasibility_score": 0.72
+      "feasibility_score": 0.72,
+      "status": "GENERATED",
+      "generated_at": "2025-01-15T10:35:00Z"
     }
   ],
   "timestamp": "2025-01-15T10:35:00Z"
@@ -380,6 +392,9 @@ Response 200:
 {
   "path_id": "uuid-path-01",
   "path_name": "Ruta de Liderazgo Regional",
+  "total_duration_months": 24,
+  "feasibility_score": 0.85,
+  "status": "GENERATED",
   "steps": [
     {
       "step_number": 1,

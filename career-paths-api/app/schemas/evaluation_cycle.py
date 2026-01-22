@@ -1,5 +1,5 @@
 """
-Schemas para EvaluationCycle.
+Schemas for EvaluationCycle.
 """
 from pydantic import BaseModel, ConfigDict, validator
 from datetime import datetime
@@ -8,7 +8,7 @@ from typing import Optional
 
 
 class EvaluationCycleBase(BaseModel):
-    """Base schema para EvaluationCycle."""
+    """Base schema for EvaluationCycle."""
     name: str
     start_date: datetime
     end_date: Optional[datetime] = None
@@ -16,7 +16,7 @@ class EvaluationCycleBase(BaseModel):
     
     @validator('end_date')
     def validate_dates(cls, end_date, values):
-        """Validar que end_date sea posterior a start_date."""
+        """Validate that end_date is after start_date."""
         if end_date and 'start_date' in values:
             if end_date <= values['start_date']:
                 raise ValueError('end_date must be after start_date')
@@ -24,12 +24,12 @@ class EvaluationCycleBase(BaseModel):
 
 
 class EvaluationCycleCreate(EvaluationCycleBase):
-    """Schema para crear un ciclo."""
+    """Schema for creating a cycle."""
     pass
 
 
 class EvaluationCycleResponse(EvaluationCycleBase):
-    """Schema para la respuesta de ciclo."""
+    """Schema for cycle response."""
     id: UUID
     created_at: datetime
     updated_at: datetime

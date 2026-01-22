@@ -1,5 +1,5 @@
 """
-Schemas para User.
+Schemas for User.
 """
 from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime
@@ -8,7 +8,7 @@ from typing import Optional
 
 
 class UserBase(BaseModel):
-    """Base schema para User."""
+    """Base schema for User."""
     email: EmailStr
     full_name: str
     current_position: Optional[str] = None
@@ -17,12 +17,12 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Schema para crear un nuevo User."""
+    """Schema for creating a new User."""
     pass
 
 
 class UserUpdate(BaseModel):
-    """Schema para actualizar un User."""
+    """Schema for updating a User."""
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     current_position: Optional[str] = None
@@ -31,7 +31,7 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
-    """Schema para la respuesta de User."""
+    """Schema for User response."""
     id: UUID
     created_at: datetime
     updated_at: datetime

@@ -1,5 +1,5 @@
 """
-Modelo de Assessment (Evaluación de Habilidades con IA).
+Assessment Model (AI Skills Assessment).
 """
 from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -11,7 +11,7 @@ from app.database import Base
 
 
 class ProcessingStatus(str, enum.Enum):
-    """Estados de procesamiento del assessment."""
+    """Assessment processing statuses."""
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
@@ -20,9 +20,9 @@ class ProcessingStatus(str, enum.Enum):
 
 class Assessment(Base):
     """
-    Modelo de Assessment - Análisis de habilidades generado por IA.
-    Almacena los resultados del análisis de competencias usando IA.
-    Un usuario solo puede tener un assessment por ciclo.
+    Assessment Model - AI-generated skills analysis.
+    Stores the results of competency analysis using AI.
+    A user can only have one assessment per cycle.
     """
     __tablename__ = "assessments"
     

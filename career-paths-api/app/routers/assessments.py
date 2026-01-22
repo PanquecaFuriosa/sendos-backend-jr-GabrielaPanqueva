@@ -1,6 +1,6 @@
 """
-Router para operaciones de skills assessments (análisis de habilidades con IA).
-Endpoint: /skills-assessments según arquitectura
+Router for skills assessments operations (AI skills analysis).
+Endpoint: /skills-assessments according to architecture
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -23,8 +23,8 @@ router = APIRouter(
 
 async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
     """
-    Función helper para disparar el procesamiento de IA.
-    Recopila todas las evaluaciones del ciclo y llama al servicio de IA.
+    Helper function to trigger AI processing.
+    Collects all cycle evaluations and calls the AI service.
     """
     try:
         # Check if an assessment already exists for this user/cycle
@@ -36,7 +36,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
         ).first()
         
         if existing_assessment and existing_assessment.processing_status == ProcessingStatus.COMPLETED:
-            # Ya se procesó, no hacer nada
+            # Already processed, do nothing
             return
         
         if not existing_assessment:
@@ -51,12 +51,12 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
         else:
             assessment = existing_assessment
         
-        # Actualizar estado a PROCESSING
+        # Update status to PROCESSING
         assessment.processing_status = ProcessingStatus.PROCESSING
         assessment.processing_started_at = datetime.utcnow()
         db.commit()
         
-        # Recopilar todas las evaluaciones del ciclo para este usuario
+        # Collect all cycle evaluations for this user
         evaluations = db.query(Evaluation).filter(
             and_(
                 Evaluation.employee_id == user_id,
@@ -67,7 +67,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
         if not evaluations:
             raise Exception("No evaluations found for this user/cycle")
         
-        # Preparar datos para la IA (formato simplificado)
+        # Prepare data for AI (simplified format)
         evaluation_data = {
             "user_id": str(user_id),
             "cycle_id": str(cycle_id),
@@ -87,10 +87,10 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
                 })
             evaluation_data["evaluations"].append(eval_dict)
         
-        # Llamar al servicio de IA
+        # Call AI service
         ai_result = await ai_service.analyze_skills(evaluation_data)
         
-        # Actualizar el assessment con los resultados
+        # Update assessment with results
         assessment.ai_profile = ai_result
         assessment.processing_status = ProcessingStatus.COMPLETED
         assessment.processing_completed_at = datetime.utcnow()
@@ -98,7 +98,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
         db.commit()
         
     except Exception as e:
-        # En caso de error, actualizar el assessment
+        # In case of error, update the assessment
         if 'assessment' in locals():
             assessment.processing_status = ProcessingStatus.FAILED
             assessment.error_message = str(e)
@@ -110,6 +110,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
             response_model=SkillsAssessmentResponse,
             summary="Get skills assessment for a user",
             responses={
+                403: {"description": "You do not have permission to view these skill assessments."},
                 404: {"description": "Employee not found or no assessments processed yet"}
             })
 async def get_skills_assessment(

@@ -1,5 +1,5 @@
 """
-Modelo de Usuario.
+User Model.
 """
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,8 +11,8 @@ from app.database import Base
 
 class User(Base):
     """
-    Modelo de Usuario en el sistema.
-    Representa un colaborador de la organización.
+    User Model in the system.
+    Represents an organization collaborator.
     """
     __tablename__ = "users"
     
@@ -25,7 +25,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones
+    # Relationships
     evaluations_given = relationship("Evaluation", foreign_keys="Evaluation.evaluator_id", back_populates="evaluator")
     evaluations_received = relationship("Evaluation", foreign_keys="Evaluation.employee_id", back_populates="employee")
     assessments = relationship("Assessment", back_populates="user", cascade="all, delete-orphan")

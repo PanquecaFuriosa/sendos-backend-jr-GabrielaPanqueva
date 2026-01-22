@@ -1,5 +1,5 @@
 """
-Schemas para Competency.
+Schemas for Competency.
 """
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
@@ -8,7 +8,7 @@ from typing import Optional
 
 
 class CompetencyBase(BaseModel):
-    """Base schema para Competency."""
+    """Base schema for Competency."""
     name: str
     description: Optional[str] = None
 
@@ -19,7 +19,7 @@ class CompetencyCreate(CompetencyBase):
 
 
 class CompetencyResponse(CompetencyBase):
-    """Schema para la respuesta de competencia."""
+    """Schema for competency response."""
     id: UUID
     created_at: datetime
     updated_at: datetime

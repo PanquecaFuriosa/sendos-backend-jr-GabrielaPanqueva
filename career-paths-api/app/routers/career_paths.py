@@ -1,6 +1,6 @@
 """
-Router para operaciones de senderos de carrera (career paths).
-Endpoints: /career-paths según arquitectura
+Router for career paths operations.
+Endpoints: /career-paths according to architecture
 """
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -31,7 +31,7 @@ router = APIRouter(
 
 async def generate_career_paths_task(user_id: UUID, db: Session):
     """
-    Genera senderos de carrera en segundo plano usando el servicio de IA.
+    Generates career paths in the background using the AI service.
     """
     import traceback
     try:
@@ -60,7 +60,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
         
         print(f"[DEBUG] Assessment found: {latest_assessment.id}")
         
-        # Preparar el perfil del usuario
+        # Prepare user profile
         user_profile = {
             "user_id": str(user_id),
             "email": user.email,
@@ -72,7 +72,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
         
         print(f"[DEBUG] Calling AI service to generate career paths")
         
-        # Llamar al servicio de IA para generar senderos
+        # Call AI service to generate paths
         career_data = await ai_service.generate_career_paths(
             user_profile=user_profile,
             ai_profile=latest_assessment.ai_profile
@@ -80,7 +80,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
         
         print(f"[DEBUG] AI service returned data with {len(career_data.get('generated_paths', []))} paths")
         
-        # Archivar senderos anteriores
+        # Archive previous paths
         archived_count = db.query(CareerPath).filter(
             and_(
                 CareerPath.user_id == user_id,
@@ -137,7 +137,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
                         )
                         db.add(action)
                     elif isinstance(action_data, str):
-                        # Si es string, crear acción genérica
+                        # If it's a string, create generic action
                         action = DevelopmentAction(
                             step_id=step.id,
                             type="training",
@@ -163,6 +163,7 @@ async def generate_career_paths_task(user_id: UUID, db: Session):
             response_model=CareerPathsListResponse,
             summary="Get career paths for a user",
             responses={
+                403: {"description": "You do not have permission to view these paths."},
                 404: {"description": "User not found or no paths created yet"},
                 422: {"description": "Invalid UUID"}
             })
@@ -247,6 +248,7 @@ async def get_career_paths(
             response_model=CareerPathStepsResponse,
             summary="Get detailed steps for a career path",
             responses={
+                403: {"description": "You do not have permission to view this path."},
                 404: {"description": "Path not found"},
                 422: {"description": "Invalid UUID"}
             })
@@ -283,6 +285,9 @@ async def get_career_path_steps(
     return CareerPathStepsResponse(
         path_id=career_path.id,
         path_name=career_path.path_name,
+        total_duration_months=career_path.total_duration_months,
+        feasibility_score=career_path.feasibility_score,
+        status=career_path.status.value,
         steps=steps_response
     )
 
@@ -292,6 +297,7 @@ async def get_career_path_steps(
              summary="Accept a career path",
              responses={
                  200: {"description": "Path accepted successfully"},
+                 403: {"description": "You do not have permission to modify this career plan."},
                  404: {"description": "Path not found"},
                  409: {"description": "This career plan is already underway"},
                  422: {"description": "Invalid UUID"}
@@ -301,24 +307,24 @@ async def accept_career_path(
     db: Session = Depends(get_db)
 ):
     """
-    Marca un sendero de carrera como aceptado por el usuario.
-    Cambia el estado a IN_PROGRESS.
+    Marks a career path as accepted by the user.
+    Changes status to IN_PROGRESS.
     
-    - **path_id**: ID del sendero a aceptar
+    - **path_id**: ID of the path to accept
     """
     career_path = db.query(CareerPath).filter(CareerPath.id == path_id).first()
     
     if not career_path:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Path whit ID {path_id} not found."  # Typo intencional según arquitectura
+            detail=f"Path whit ID {path_id} not found."  # Intentional typo per architecture
         )
     
     # Check if already in progress
     if career_path.status == CareerPathStatus.IN_PROGRESS:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This career plan is already underway.."  # Doble punto intencional según arquitectura
+            detail="This career plan is already underway.."  # Intentional double period per architecture
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -331,7 +337,7 @@ async def accept_career_path(
             detail="This career plan is already underway."
         )
     
-    # Actualizar estado
+    # Update status
     career_path.status = CareerPathStatus.IN_PROGRESS
     career_path.started_at = datetime.utcnow()
     db.commit()

@@ -1,5 +1,5 @@
 """
-Schemas para Career Path.
+Schemas for Career Path.
 """
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
@@ -8,12 +8,14 @@ from typing import Optional, List, Dict, Any, Union
 
 
 class CareerPathSummaryResponse(BaseModel):
-    """Schema para resumen de career paths (lista)."""
+    """Schema for career paths summary (list)."""
     path_id: UUID
     path_name: str
     recommended: bool
     total_duration_months: float
     feasibility_score: Optional[float] = None
+    status: str
+    generated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
     
@@ -25,20 +27,22 @@ class CareerPathSummaryResponse(BaseModel):
             path_name=path.path_name,
             recommended=path.recommended,
             total_duration_months=path.total_duration_months,
-            feasibility_score=path.feasibility_score
+            feasibility_score=path.feasibility_score,
+            status=path.status.value,
+            generated_at=path.generated_at
         )
 
 
 class CareerPathsListResponse(BaseModel):
-    """Schema para lista de career paths de un usuario."""
-    career_path_id: UUID  # ID del registro más reciente
+    """Schema for user's career paths list."""
+    career_path_id: UUID  # Most recent record ID
     user_id: UUID
     generated_paths: List[CareerPathSummaryResponse]
     timestamp: datetime
 
 
 class CompetencyDevelopment(BaseModel):
-    """Schema para desarrollo de competencia en un paso."""
+    """Schema for competency development in a step."""
     name: str
     current_level: int
     required_level: int
@@ -46,7 +50,7 @@ class CompetencyDevelopment(BaseModel):
 
 
 class CareerPathStepDetail(BaseModel):
-    """Schema para detalle de un paso."""
+    """Schema for step detail."""
     step_number: int
     target_role: str
     duration_months: int
@@ -55,16 +59,19 @@ class CareerPathStepDetail(BaseModel):
 
 
 class CareerPathStepsResponse(BaseModel):
-    """Schema para pasos detallados de un sendero."""
+    """Schema for detailed path steps."""
     path_id: UUID
     path_name: str
+    total_duration_months: float
+    feasibility_score: Optional[float] = None
+    status: str
     steps: List[CareerPathStepDetail]
     
     model_config = ConfigDict(from_attributes=True)
 
 
 class CareerPathAcceptResponse(BaseModel):
-    """Schema para respuesta de aceptación de sendero."""
+    """Schema for path acceptance response."""
     path_id: UUID
     user_id: UUID
     status: str

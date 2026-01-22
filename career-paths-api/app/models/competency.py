@@ -1,5 +1,5 @@
 """
-Modelo de Competencias.
+Competency Model.
 """
 from sqlalchemy import Column, String, Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,8 +11,8 @@ from app.database import Base
 
 class Competency(Base):
     """
-    Modelo de Competencia.
-    Catálogo de competencias evaluables (ej: Liderazgo, Comunicación).
+    Competency Model.
+    Catalog of assessable competencies (e.g., Leadership, Communication).
     """
     __tablename__ = "competencies"
     
@@ -23,7 +23,7 @@ class Competency(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones
+    # Relationships
     evaluation_details = relationship("EvaluationDetail", back_populates="competency", cascade="all, delete-orphan")
     
     def __repr__(self):

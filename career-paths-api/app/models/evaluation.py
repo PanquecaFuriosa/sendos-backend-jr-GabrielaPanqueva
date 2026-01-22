@@ -1,5 +1,5 @@
 """
-Modelo de Evaluación 360°.
+360° Evaluation Model.
 """
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Enum as SQLEnum, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,7 +11,7 @@ from app.database import Base
 
 
 class EvaluatorRelationship(str, enum.Enum):
-    """Tipo de relación entre evaluador y evaluado."""
+    """Relationship type between evaluator and evaluatee."""
     SELF = "SELF"
     MANAGER = "MANAGER"
     PEER = "PEER"
@@ -19,7 +19,7 @@ class EvaluatorRelationship(str, enum.Enum):
 
 
 class EvaluationStatus(str, enum.Enum):
-    """Estados de una evaluación."""
+    """Evaluation statuses."""
     SUBMITTED = "SUBMITTED"
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
@@ -28,8 +28,8 @@ class EvaluationStatus(str, enum.Enum):
 
 class Evaluation(Base):
     """
-    Modelo de Evaluación 360°.
-    Representa una evaluación realizada por un evaluador hacia un evaluado.
+    360° Evaluation Model.
+    Represents an evaluation performed by an evaluator towards an evaluatee.
     """
     __tablename__ = "evaluations"
     
@@ -45,7 +45,7 @@ class Evaluation(Base):
     # Relationship type
     evaluator_relationship = Column(SQLEnum(EvaluatorRelationship), nullable=False)
     
-    # Feedback general
+    # General feedback
     general_feedback = Column(Text, nullable=True)
     
     # Status
@@ -60,7 +60,7 @@ class Evaluation(Base):
         Index('ix_evaluations_employee_cycle', 'employee_id', 'cycle_id'),
     )
     
-    # Relaciones
+    # Relationships
     evaluator = relationship("User", foreign_keys=[evaluator_id], back_populates="evaluations_given")
     employee = relationship("User", foreign_keys=[employee_id], back_populates="evaluations_received")
     cycle = relationship("EvaluationCycle", back_populates="evaluations")

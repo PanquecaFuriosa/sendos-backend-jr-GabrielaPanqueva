@@ -1,5 +1,5 @@
 """
-Modelo de Paso del Sendero de Carrera.
+Career Path Step Model.
 """
 from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -11,8 +11,8 @@ from app.database import Base
 
 class CareerPathStep(Base):
     """
-    Modelo de Paso del Sendero de Carrera (weak entity).
-    Representa un paso individual en un sendero de carrera.
+    Career Path Step Model (weak entity).
+    Represents an individual step in a career path.
     """
     __tablename__ = "career_path_steps"
     
@@ -27,11 +27,11 @@ class CareerPathStep(Base):
     target_role = Column(String, nullable=False)
     duration_months = Column(Integer, nullable=False)
     
-    # Competencias requeridas (JSONB)
+    # Required competencies (JSONB)
     required_competencies = Column(JSONB, nullable=True)
     # [
     #   {
-    #     "name": "Pensamiento Estratégico",
+    #     "name": "Strategic Thinking",
     #     "current_level": 5,
     #     "required_level": 7,
     #     "development_actions": [...]
@@ -41,7 +41,7 @@ class CareerPathStep(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones
+    # Relationships
     career_path = relationship("CareerPath", back_populates="steps")
     development_actions = relationship("DevelopmentAction", back_populates="step", cascade="all, delete-orphan")
     
