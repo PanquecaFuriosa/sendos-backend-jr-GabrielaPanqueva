@@ -40,8 +40,8 @@ app.include_router(
 )
 app.include_router(
     assessments.router,
-    prefix=f"{settings.API_V1_PREFIX}/assessments",
-    tags=["assessments"]
+    prefix=f"{settings.API_V1_PREFIX}/skills-assessments",
+    tags=["skills-assessments"]
 )
 app.include_router(
     career_paths.router,

@@ -17,7 +17,6 @@ from app.schemas.assessment import SkillsAssessmentResponse
 from app.services.ai_integration import ai_service
 
 router = APIRouter(
-    prefix="/skills-assessments",
     tags=["skills-assessments"]
 )
 
@@ -60,7 +59,7 @@ async def trigger_ai_processing(user_id: UUID, cycle_id: UUID, db: Session):
         # Recopilar todas las evaluaciones del ciclo para este usuario
         evaluations = db.query(Evaluation).filter(
             and_(
-                Evaluation.evaluatee_id == user_id,
+                Evaluation.employee_id == user_id,
                 Evaluation.cycle_id == cycle_id
             )
         ).all()

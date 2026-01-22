@@ -116,7 +116,7 @@ def init_db():
         # María's self-evaluation
         eval_self = Evaluation(
             evaluator_id=users[0].id,
-            evaluatee_id=users[0].id,
+            employee_id=users[0].id,
             cycle_id=cycle.id,
             evaluator_relationship=EvaluatorRelationship.SELF,
             status=EvaluationStatus.SUBMITTED
@@ -138,7 +138,7 @@ def init_db():
         # Carlos's (Manager) evaluation of María
         eval_manager = Evaluation(
             evaluator_id=users[1].id,
-            evaluatee_id=users[0].id,
+            employee_id=users[0].id,
             cycle_id=cycle.id,
             evaluator_relationship=EvaluatorRelationship.MANAGER,
             status=EvaluationStatus.SUBMITTED
@@ -160,7 +160,7 @@ def init_db():
         # Ana's (Peer) evaluation of María
         eval_peer = Evaluation(
             evaluator_id=users[2].id,
-            evaluatee_id=users[0].id,
+            employee_id=users[0].id,
             cycle_id=cycle.id,
             evaluator_relationship=EvaluatorRelationship.PEER,
             status=EvaluationStatus.SUBMITTED

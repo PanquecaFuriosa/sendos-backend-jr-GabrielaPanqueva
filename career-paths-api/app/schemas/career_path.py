@@ -4,7 +4,7 @@ Schemas para Career Path.
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from uuid import UUID
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 
 class CareerPathSummaryResponse(BaseModel):
@@ -50,7 +50,8 @@ class CareerPathStepDetail(BaseModel):
     step_number: int
     target_role: str
     duration_months: int
-    required_competencies: List[Dict[str, Any]]
+    # Can be either a list of strings or a list of dicts
+    required_competencies: Union[List[str], List[Dict[str, Any]]]
 
 
 class CareerPathStepsResponse(BaseModel):

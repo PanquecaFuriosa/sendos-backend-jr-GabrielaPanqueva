@@ -8,8 +8,8 @@ from typing import Optional, List
 
 
 class EvaluationAnswerCreate(BaseModel):
-    """Schema para una respuesta en la evaluación."""
-    competency_id: UUID
+    """Schema para una respuesta en la evaluación - API externa usa nombre."""
+    competency: str  # Architecture spec uses competency name, not ID
     score: int = Field(..., ge=1, le=10, description="Score must be between 1 and 10")
     comments: Optional[str] = None
 
@@ -17,7 +17,7 @@ class EvaluationAnswerCreate(BaseModel):
 class EvaluationCreate(BaseModel):
     """Schema to create a new evaluation."""
     evaluator_id: UUID
-    evaluatee_id: UUID
+    employee_id: UUID  # Architecture spec uses 'employee_id' instead of 'evaluatee_id'
     cycle_id: UUID
     evaluator_relationship: str = Field(..., description="SELF, MANAGER, PEER, or DIRECT_REPORT")
     answers: List[EvaluationAnswerCreate]
@@ -38,41 +38,44 @@ class EvaluationCreate(BaseModel):
             raise ValueError('At least one answer is required')
         return v
     
-    @validator('evaluatee_id')
-    def validate_self_evaluation(cls, evaluatee_id, values):
-        """Para evaluaciones SELF, evaluator_id y evaluatee_id deben coincidir."""
+    @validator('employee_id')
+    def validate_self_evaluation(cls, employee_id, values):
+        """Para evaluaciones SELF, evaluator_id y employee_id deben coincidir."""
         if 'evaluator_id' in values and 'evaluator_relationship' in values:
             if values['evaluator_relationship'] == 'SELF':
-                if evaluatee_id != values['evaluator_id']:
-                    raise ValueError("For 'SELF' type evaluations, the employee ID and the evaluator ID must match.")
-        return evaluatee_id
+                if employee_id != values['evaluator_id']:
+                    raise ValueError("Invalid relationship. For 'SELF' type evaluations, the employee ID and the evaluator ID must match.")
+        return employee_id
 
 
 class EvaluationResponse(BaseModel):
-    """Schema para la respuesta de evaluación."""
+    """Schema para la respuesta de evaluación según arquitectura."""
     id: UUID
-    evaluator_id: UUID
-    evaluatee_id: UUID
-    cycle_id: UUID
-    evaluator_relationship: str
-    general_feedback: Optional[str] = None
+    employee_id: UUID  # Architecture spec uses 'employee_id'
     status: str
     created_at: datetime
-    updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
 
 
 class EvaluationDetailResponse(BaseModel):
     """Schema para detalle de evaluación con competencia."""
-    competency_id: UUID
-    competency_name: Optional[str] = None
+    competency: str  # Architecture spec uses 'competency' name directly
     score: int
     comments: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
 
-class EvaluationFullResponse(EvaluationResponse):
-    """Schema completo con detalles."""
-    details: List[EvaluationDetailResponse] = []
+class EvaluationFullResponse(BaseModel):
+    """Schema completo con detalles según arquitectura."""
+    employee_id: UUID
+    evaluator_id: UUID
+    cycle_id: UUID
+    evaluator_relationship: str
+    answers: List[EvaluationDetailResponse]
+    general_feedback: Optional[str] = None
+    status: str
+    updated_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

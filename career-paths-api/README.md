@@ -27,7 +27,7 @@ pip install -r requirements.txt
 cp .env.example .env
 
 # 4. Levantar PostgreSQL con Docker
-docker-compose up -d
+docker compose up -d
 
 # 5. Esperar que la DB esté lista
 sleep 5
@@ -38,11 +38,15 @@ alembic upgrade head
 # 7. (Opcional) Cargar datos de prueba
 python init_db.py
 
-# 8. Correr la aplicación
+# 8. Iniciar el servicio mock de IA (en otra terminal)
+python -m uvicorn ai_mock_service:app --host 0.0.0.0 --port 8001 &
+
+# 9. Correr la aplicación
 uvicorn app.main:app --reload --port 8000
 ```
 
 La API estará disponible en http://localhost:8000/docs
+El servicio de IA mock estará en http://localhost:8001/docs
 
 ### Ejecutar tests
 
@@ -56,8 +60,8 @@ El proyecto usa **Alembic** para gestionar migraciones de base de datos.
 
 ### Primera vez (requerido)
 ```bash
-# Con Docker (se ejecutan automáticamente al hacer docker-compose up)
-docker-compose up -d
+# Con Docker (se ejecutan automáticamente al hacer docker compose up)
+docker compose up -d
 
 # Manual - EJECUTAR ANTES de uvicorn
 alembic upgrade head
@@ -84,7 +88,7 @@ Después de ejecutar las migraciones, puedes cargar datos de ejemplo:
 
 ```bash
 # Con Docker
-docker-compose exec api python init_db.py
+docker compose exec api python init_db.py
 
 # Manual (después de alembic upgrade head)
 python init_db.py
@@ -299,17 +303,18 @@ Respuesta 409 Conflict: El sendero ya está en progreso
 
 ```bash
 # Ejecutar todos los tests
-docker-compose exec api pytest
+docker compose exec api pytest
 
 # Con coverage
-docker-compose exec api pytest --cov=app --cov-report=html
+docker compose exec api pytest --cov=app --cov-report=html
 
 # Tests específicos
-docker-compose exec api pytest tests/test_api.py -v
+docker compose exec api pytest tests/test_api.py -v
 
 # Ver reporte de coverage (HTML)
-start htmlcov/index.html  # Windows
-open htmlcov/index.html   # macOS/Linux
+xdg-open htmlcov/index.html  # Linux
+open htmlcov/index.html      # macOS
+start htmlcov/index.html     # Windows
 ```
 
 ## Ejemplos de Uso
@@ -393,28 +398,43 @@ Para más detalles, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y [DECISIONS.md](./
 
 ```bash
 # Construir imagen
-docker-compose build
+docker compose build
 
 # Iniciar servicios
-docker-compose up -d
+docker compose up -d
 
 # Ver logs
-docker-compose logs -f api
+docker compose logs -f api
 
 # Ejecutar migraciones en contenedor
-docker-compose exec api alembic upgrade head
+docker compose exec api alembic upgrade head
 
 # Inicializar datos
-docker-compose exec api python init_db.py
+docker compose exec api python init_db.py
 
 # Detener servicios
-docker-compose down
+docker compose down
 
 # Limpiar volúmenes
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Desarrollo
+
+### Iniciar servicios manualmente
+
+```bash
+# Terminal 1 - Base de datos
+docker compose up -d postgres
+
+# Terminal 2 - Servicio de IA Mock
+python -m uvicorn ai_mock_service:app --host 0.0.0.0 --port 8001
+
+# Terminal 3 - API principal
+uvicorn app.main:app --reload --port 8000
+```
+
+### Migraciones
 
 ```bash
 # Crear nueva migración

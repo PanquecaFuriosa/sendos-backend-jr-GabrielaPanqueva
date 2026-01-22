@@ -27,7 +27,7 @@ class User(Base):
     
     # Relaciones
     evaluations_given = relationship("Evaluation", foreign_keys="Evaluation.evaluator_id", back_populates="evaluator")
-    evaluations_received = relationship("Evaluation", foreign_keys="Evaluation.evaluatee_id", back_populates="evaluatee")
+    evaluations_received = relationship("Evaluation", foreign_keys="Evaluation.employee_id", back_populates="employee")
     assessments = relationship("Assessment", back_populates="user", cascade="all, delete-orphan")
     career_paths = relationship("CareerPath", back_populates="user", cascade="all, delete-orphan")
     

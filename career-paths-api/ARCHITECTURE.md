@@ -145,7 +145,7 @@ Response 200:
       "comments": "Demuestra gran capacidad..."
     },
     {
-      "competency_id": "Comunicación",
+      "competency": "Comunicación",
       "score": 7,
       "comments": "Buena oratoria, falta escucha activa."
     }
@@ -497,8 +497,6 @@ Response 200:
     "user_id": "uuid-user-1",
     "evaluator_id": "uuid-user-2",
     "cycle_id": "uuid-cycle-2026-q1",
-    "evaluator_relationship": "peer", 
-    "status": "COMPLETED",
     "created_at": "2026-01-20T10:00:00Z"
   },
   {
@@ -506,8 +504,6 @@ Response 200:
     "user_id": "uuid-user-1",
     "evaluator_id": "uuid-user-3",
     "cycle_id": "uuid-cycle-2026-q1",
-    "evaluator_relationship": "manager",
-    "status": "SUBMITTED",
     "created_at": "2026-01-20T11:00:00Z"
   }
 ]
@@ -538,7 +534,7 @@ erDiagram
 
     COMPETENCIES {
         uuid id PK
-        string name
+        string name UNIQUE
         string description
     }
 
@@ -546,7 +542,7 @@ erDiagram
     EVALUATIONS {
         uuid id PK
         uuid evaluator_id FK
-        uuid evaluatee_id FK
+        uuid employee_id FK
         uuid cycle_id FK
         string status
     }
@@ -565,16 +561,28 @@ erDiagram
         uuid user_id FK
         uuid cycle_id FK
         jsonb ai_profile
+        string processing_status
+        timestamp processing_started_at
+        timestamp processing_completed_at
+        string error_message
         timestamp created_at
+        timestamp updated_at
     }
 
     %% --- BLOQUE 4: PLANES DE CARRERA (CADENA DÉBIL) ---
     CAREER_PATHS {
         uuid id PK
         uuid user_id FK "[WEAK] Dep: User"
-        string title
-        float match_score
+        string path_name
+        boolean recommended
+        float total_duration_months
+        float feasibility_score
+        string status
+        timestamp generated_at
+        timestamp started_at
+        timestamp completed_at
         timestamp created_at
+        timestamp updated_at
     }
 
     CAREER_PATH_STEPS {
@@ -582,6 +590,11 @@ erDiagram
         uuid career_path_id FK "[WEAK] Dep: Path"
         int step_order
         string title
+        string target_role
+        int duration_months
+        jsonb required_competencies
+        timestamp created_at
+        timestamp updated_at
     }
 
     DEVELOPMENT_ACTIONS {
@@ -589,6 +602,7 @@ erDiagram
         uuid step_id FK "[WEAK] Dep: Step"
         string type
         string description
+        timestamp created_at
     }
 
     %% --- RELACIONES (Ordenadas para evitar cruces) ---

@@ -35,9 +35,9 @@ class Evaluation(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
-    # Evaluator and evaluatee (N:M relationship with User)
+    # Evaluator and employee (N:M relationship with User)
     evaluator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    evaluatee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
     # Evaluation cycle
     cycle_id = Column(UUID(as_uuid=True), ForeignKey("evaluation_cycles.id"), nullable=False, index=True)
@@ -56,15 +56,15 @@ class Evaluation(Base):
     
     # Uniqueness constraint: an evaluator can only evaluate a person once per cycle
     __table_args__ = (
-        UniqueConstraint('evaluator_id', 'evaluatee_id', 'cycle_id', name='uq_evaluator_evaluatee_cycle'),
-        Index('ix_evaluations_evaluatee_cycle', 'evaluatee_id', 'cycle_id'),
+        UniqueConstraint('evaluator_id', 'employee_id', 'cycle_id', name='uq_evaluator_employee_cycle'),
+        Index('ix_evaluations_employee_cycle', 'employee_id', 'cycle_id'),
     )
     
     # Relaciones
     evaluator = relationship("User", foreign_keys=[evaluator_id], back_populates="evaluations_given")
-    evaluatee = relationship("User", foreign_keys=[evaluatee_id], back_populates="evaluations_received")
+    employee = relationship("User", foreign_keys=[employee_id], back_populates="evaluations_received")
     cycle = relationship("EvaluationCycle", back_populates="evaluations")
     details = relationship("EvaluationDetail", back_populates="evaluation", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Evaluation {self.evaluator_relationship} from {self.evaluator_id} to {self.evaluatee_id}>"
+        return f"<Evaluation {self.evaluator_relationship} from {self.evaluator_id} to {self.employee_id}>"

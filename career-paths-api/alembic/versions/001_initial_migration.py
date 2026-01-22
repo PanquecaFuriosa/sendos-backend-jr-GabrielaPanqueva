@@ -60,7 +60,7 @@ def upgrade() -> None:
     op.create_table('evaluations',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('evaluator_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('evaluatee_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('employee_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('cycle_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('evaluator_relationship', sa.Enum('SELF', 'MANAGER', 'PEER', 'DIRECT_REPORT', name='evaluatorrelationship'), nullable=False),
         sa.Column('general_feedback', sa.Text(), nullable=True),
@@ -68,7 +68,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['cycle_id'], ['evaluation_cycles.id'], ),
-        sa.ForeignKeyConstraint(['evaluatee_id'], ['users.id'], ),
+        sa.ForeignKeyConstraint(['employee_id'], ['users.id'], ),
         sa.ForeignKeyConstraint(['evaluator_id'], ['users.id'], ),
         sa.PrimaryKeyConstraint('id')
     )

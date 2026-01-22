@@ -22,7 +22,7 @@ router = APIRouter(
 )
 
 
-async def check_cycle_completion_and_trigger_ai(evaluatee_id: UUID, cycle_id: UUID, db: Session):
+async def check_cycle_completion_and_trigger_ai(employee_id: UUID, cycle_id: UUID, db: Session):
     """
     Verifica si se completaron todas las evaluaciones del ciclo para un usuario.
     Si está completo, dispara el procesamiento de IA.
@@ -39,7 +39,7 @@ async def check_cycle_completion_and_trigger_ai(evaluatee_id: UUID, cycle_id: UU
     completed_types = set()
     evaluations = db.query(Evaluation).filter(
         and_(
-            Evaluation.evaluatee_id == evaluatee_id,
+            Evaluation.employee_id == employee_id,
             Evaluation.cycle_id == cycle_id
         )
     ).all()
@@ -60,6 +60,7 @@ async def check_cycle_completion_and_trigger_ai(evaluatee_id: UUID, cycle_id: UU
 @router.post("/", response_model=EvaluationResponse, status_code=status.HTTP_201_CREATED,
              summary="Submit a new 360 evaluation",
              responses={
+                 400: {"description": "Invalid relationship for SELF evaluation"},
                  404: {"description": "Cycle or User not found"},
                  409: {"description": "Evaluation duplicate constraint violation"},
                  422: {"description": "Validation error"}
@@ -73,7 +74,7 @@ async def create_evaluation(
     Crea una nueva evaluación 360°.
     
     - **evaluator_id**: ID del usuario que evalúa
-    - **evaluatee_id**: ID del usuario evaluado
+    - **employee_id**: ID del usuario evaluado
     - **cycle_id**: ID del ciclo de evaluación
     - **evaluator_relationship**: Tipo de relación (SELF, MANAGER, PEER, DIRECT_REPORT)
     - **answers**: Lista de respuestas por competencia con scores (1-10)
@@ -89,7 +90,7 @@ async def create_evaluation(
             detail=f"Evaluation cycle with ID {evaluation.cycle_id} not found."
         )
     
-    # Verify evaluator and evaluatee exist
+    # Verify evaluator exists
     evaluator = db.query(User).filter(User.id == evaluation.evaluator_id).first()
     if not evaluator:
         raise HTTPException(
@@ -97,27 +98,38 @@ async def create_evaluation(
             detail=f"The specified evaluator ({evaluation.evaluator_id}) does not exist."
         )
     
-    evaluatee = db.query(User).filter(User.id == evaluation.evaluatee_id).first()
-    if not evaluatee:
+    # Verify employee exists
+    employee = db.query(User).filter(User.id == evaluation.employee_id).first()
+    if not employee:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"The specified employee ({evaluation.evaluatee_id}) does not exist."
+            detail=f"The specified employee ({evaluation.employee_id}) does not exist."
         )
     
-    # Verify all competencies exist
+    # Validate SELF evaluation: evaluator and employee must be the same person
+    if evaluation.evaluator_relationship == "SELF":
+        if evaluation.evaluator_id != evaluation.employee_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid relationship. For 'SELF' type evaluations, the employee ID and the evaluator ID must match."
+            )
+    
+    # Verify all competencies exist and build a mapping name -> id
+    competency_mapping = {}
     for answer in evaluation.answers:
-        competency = db.query(Competency).filter(Competency.id == answer.competency_id).first()
+        competency = db.query(Competency).filter(Competency.name == answer.competency).first()
         if not competency:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Competency with ID {answer.competency_id} not found."
+                detail=f"Competency '{answer.competency}' not found."
             )
+        competency_mapping[answer.competency] = competency.id
     
     try:
         # Create the evaluation
         db_evaluation = Evaluation(
             evaluator_id=evaluation.evaluator_id,
-            evaluatee_id=evaluation.evaluatee_id,
+            employee_id=evaluation.employee_id,
             cycle_id=evaluation.cycle_id,
             evaluator_relationship=EvaluatorRelationship(evaluation.evaluator_relationship),
             general_feedback=evaluation.general_feedback,
@@ -127,11 +139,11 @@ async def create_evaluation(
         db.add(db_evaluation)
         db.flush()  # Para obtener el ID
         
-        # Create evaluation details
+        # Create evaluation details - map competency name to ID
         for answer in evaluation.answers:
             detail = EvaluationDetail(
                 evaluation_id=db_evaluation.id,
-                competency_id=answer.competency_id,
+                competency_id=competency_mapping[answer.competency],  # Use mapped ID
                 score=answer.score,
                 comments=answer.comments
             )
@@ -143,12 +155,18 @@ async def create_evaluation(
         # Check if cycle is complete and trigger AI in background
         background_tasks.add_task(
             check_cycle_completion_and_trigger_ai,
-            evaluation.evaluatee_id,
+            evaluation.employee_id,
             evaluation.cycle_id,
             db
         )
         
-        return db_evaluation
+        # Return response according to architecture spec
+        return EvaluationResponse(
+            id=db_evaluation.id,
+            employee_id=db_evaluation.employee_id,
+            status=db_evaluation.status.value,
+            created_at=db_evaluation.created_at
+        )
         
     except IntegrityError as e:
         db.rollback()
@@ -158,7 +176,13 @@ async def create_evaluation(
         )
 
 
-@router.get("/{evaluation_id}", response_model=EvaluationFullResponse)
+@router.get("/{evaluation_id}", 
+            response_model=EvaluationFullResponse,
+            summary="Get evaluation by ID",
+            responses={
+                404: {"description": "Evaluation not found"},
+                422: {"description": "Invalid UUID"}
+            })
 async def get_evaluation(
     evaluation_id: UUID,
     db: Session = Depends(get_db)
@@ -176,28 +200,25 @@ async def get_evaluation(
             detail=f"Evaluation with ID {evaluation_id} not found."
         )
     
-    # Cargar detalles con nombres de competencias
-    details_response = []
+    # Build answers list according to architecture spec
+    answers_response = []
     for detail in evaluation.details:
-        details_response.append(EvaluationDetailResponse(
-            competency_id=detail.competency_id,
-            competency_name=detail.competency.name if detail.competency else None,
+        answers_response.append(EvaluationDetailResponse(
+            competency=detail.competency.name if detail.competency else "Unknown",
             score=detail.score,
             comments=detail.comments
         ))
     
-    # Build response
+    # Build response according to architecture spec
     response = EvaluationFullResponse(
-        id=evaluation.id,
+        employee_id=evaluation.employee_id,
         evaluator_id=evaluation.evaluator_id,
-        evaluatee_id=evaluation.evaluatee_id,
         cycle_id=evaluation.cycle_id,
         evaluator_relationship=evaluation.evaluator_relationship.value,
+        answers=answers_response,
         general_feedback=evaluation.general_feedback,
         status=evaluation.status.value,
-        created_at=evaluation.created_at,
-        updated_at=evaluation.updated_at,
-        details=details_response
+        updated_at=evaluation.updated_at
     )
     
     return response
@@ -220,16 +241,16 @@ async def list_evaluations(
 
 
 @router.post("/{evaluation_id}/process", 
-             response_model=dict,
              status_code=status.HTTP_202_ACCEPTED,
              summary="Trigger AI processing for an evaluation",
              responses={
+                 202: {"description": "Processing started"},
                  404: {"description": "Evaluation not found"},
-                 409: {"description": "The evaluation is already being processed"}
+                 409: {"description": "The evaluation is already being processed"},
+                 422: {"description": "Invalid UUID"}
              })
 async def process_evaluation(
     evaluation_id: UUID,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -237,6 +258,8 @@ async def process_evaluation(
     Normalmente esto se hace automáticamente cuando se completa el ciclo.
     
     - **evaluation_id**: ID de la evaluación a procesar
+    
+    Retorna 202 Accepted según la especificación de la arquitectura.
     """
     evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
     
@@ -246,27 +269,40 @@ async def process_evaluation(
             detail=f"Evaluation with ID {evaluation_id} not found."
         )
     
-    if evaluation.status == EvaluationStatus.PROCESSING:
+    # Check if already processing
+    from app.models.assessment import Assessment, ProcessingStatus
+    existing_assessment = db.query(Assessment).filter(
+        and_(
+            Assessment.user_id == evaluation.employee_id,
+            Assessment.cycle_id == evaluation.cycle_id,
+            Assessment.processing_status == ProcessingStatus.PROCESSING
+        )
+    ).first()
+    
+    if existing_assessment:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="The evaluation is already being processed."
         )
     
-    # Actualizar estado
-    evaluation.status = EvaluationStatus.PROCESSING
-    db.commit()
-    
-    # Disparar procesamiento en background
+    # Procesar directamente (sin background task para evitar problemas con la sesión)
     from app.routers.assessments import trigger_ai_processing
-    background_tasks.add_task(
-        trigger_ai_processing,
-        evaluation.evaluatee_id,
-        evaluation.cycle_id,
-        db
-    )
     
-    return {
-        "message": "Processing started",
-        "task_id": str(evaluation.id),
-        "status": "PROCESSING"
-    }
+    try:
+        await trigger_ai_processing(
+            evaluation.employee_id,
+            evaluation.cycle_id,
+            db
+        )
+        
+        # Return 202 response according to architecture spec
+        return {
+            "message": "Processing started",
+            "task_id": str(evaluation.id),  # Using evaluation_id as task_id
+            "status": "PROCESSING"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing evaluation: {str(e)}"
+        )
